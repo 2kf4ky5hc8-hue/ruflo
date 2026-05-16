@@ -1,0 +1,110 @@
+# Default risk-profile presets seeded into risk_profiles per user.
+# All `*_pct` are decimal fractions: 0.08 = 8%.
+
+version: "2026-05-16"
+
+profiles:
+
+  conservative:
+    name: conservative
+    max_single_position_pct: 0.05
+    max_speculative_pct: 0.05
+    max_sector_pct: 0.25
+    max_country_pct: 0.40
+    max_currency_pct: 0.40
+    max_daily_loss_pct: 0.02
+    max_weekly_loss_pct: 0.04
+    max_monthly_loss_pct: 0.08
+    leverage_allowed: false
+    options_allowed: false
+    crypto_cap_pct: 0.00
+    cash_floor_months: 6
+    cooling_off_minutes: 60
+    sleep_mode_start: "22:00"
+    sleep_mode_end:   "07:00"
+    new_instrument_size_cap_pct: 0.02
+    liquidity_min_adv_gbp: 1000000
+    paper_trade_days: 30
+
+  balanced:
+    name: balanced
+    max_single_position_pct: 0.08
+    max_speculative_pct: 0.10
+    max_sector_pct: 0.30
+    max_country_pct: 0.55
+    max_currency_pct: 0.60
+    max_daily_loss_pct: 0.03
+    max_weekly_loss_pct: 0.06
+    max_monthly_loss_pct: 0.12
+    leverage_allowed: false
+    options_allowed: false
+    crypto_cap_pct: 0.02
+    cash_floor_months: 3
+    cooling_off_minutes: 30
+    sleep_mode_start: "23:00"
+    sleep_mode_end:   "06:00"
+    new_instrument_size_cap_pct: 0.04
+    liquidity_min_adv_gbp: 500000
+    paper_trade_days: 14
+
+  aggressive:
+    name: aggressive
+    max_single_position_pct: 0.12
+    max_speculative_pct: 0.20
+    max_sector_pct: 0.40
+    max_country_pct: 0.70
+    max_currency_pct: 0.80
+    max_daily_loss_pct: 0.05
+    max_weekly_loss_pct: 0.10
+    max_monthly_loss_pct: 0.18
+    leverage_allowed: false    # still false; gated behind High-Risk Unlock
+    options_allowed: false     # still false; gated behind High-Risk Unlock
+    crypto_cap_pct: 0.05
+    cash_floor_months: 2
+    cooling_off_minutes: 15
+    sleep_mode_start: "23:30"
+    sleep_mode_end:   "06:00"
+    new_instrument_size_cap_pct: 0.06
+    liquidity_min_adv_gbp: 100000
+    paper_trade_days: 7
+
+# Hard rules — apply regardless of profile.
+hard_rules:
+  - id: no_non_public_information
+    description: "Never suggest action based on non-public information."
+  - id: no_market_manipulation_language
+    description: "Never use 'pump', 'guaranteed', 'risk-free', 'can't lose'."
+  - id: tax_efficiency_not_evasion
+    description: "Only legitimate wrappers and reliefs. Never evasion."
+  - id: single_user_funds_only
+    description: "System manages only the account holder's own funds."
+  - id: night_freeze
+    description: "No live actions 22:00-07:00 UK without explicit out-of-hours token."
+  - id: high_risk_phrase_required
+    description: "High-Risk Unlock requires typing 'I accept the risk of total loss'."
+
+allocation_presets:
+  conservative:
+    emergency_fund: 0.40
+    isa: 0.30
+    higher_risk: 0.05
+    debt: 0.15
+    business_reinvest: 0.05
+    education: 0.03
+    opportunity: 0.02
+  balanced:
+    emergency_fund: 0.20
+    isa: 0.40
+    higher_risk: 0.10
+    debt: 0.10
+    business_reinvest: 0.10
+    education: 0.05
+    opportunity: 0.05
+  aggressive:
+    emergency_fund: 0.10
+    isa: 0.35
+    higher_risk: 0.20
+    debt: 0.05
+    business_reinvest: 0.20
+    education: 0.05
+    opportunity: 0.05
