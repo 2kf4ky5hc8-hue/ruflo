@@ -1,0 +1,29 @@
+# wealth-isa agent configuration
+type: wealth-isa
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - isa-allowance-tracking
+  - isa-eligibility-classification
+  - tax-year-deadline-alerts
+  - bed-and-isa-candidate-detection
+inputs:
+  - isa_deposits
+  - isa_years
+  - holdings
+  - tax_rules_yaml
+outputs:
+  - allowance_status
+  - deadline_proposals
+  - eligibility_findings
+restrictions:
+  - read-only
+  - cites-tax-rule-version
+  - flexible-isa-rules-enforced
+safety:
+  - never-recommend-without-rule-citation
+guardrails:
+  - max-budget-usd-per-run: 0.05
+optimizations:
+  - pattern-matching
+createdAt: "2026-05-16T00:00:00.000Z"

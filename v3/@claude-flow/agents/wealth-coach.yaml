@@ -1,0 +1,43 @@
+# wealth-coach agent configuration (top-level coordinator)
+type: wealth-coach
+version: "0.1.0"
+domain: wealth-os
+role: coordinator
+capabilities:
+  - weekly-review-assembly
+  - daily-snapshot-assembly
+  - cross-agent-synthesis
+  - user-facing-narrative
+inputs:
+  - all_sub_agent_outputs
+  - reports
+  - pending_proposed_actions
+outputs:
+  - weekly_wealth_review
+  - daily_snapshot
+restrictions:
+  - synthesis-only-no-net-new-recommendations
+  - tone-ambitious-but-disciplined
+  - challenges-bad-decisions-clearly
+  - never-uses-gambling-language
+sub_agents:
+  - wealth-cashflow
+  - wealth-isa
+  - wealth-portfolio-research
+  - wealth-risk-manager
+  - wealth-opportunity-scanner
+  - wealth-tax-wrapper
+  - wealth-business-cashflow
+  - wealth-trade-drafting
+  - wealth-compliance-guardrail
+topology: hierarchical
+consensus: raft
+safety:
+  - guardrail-pass-required-before-send
+  - disclaimer-always-appended
+guardrails:
+  - max-budget-usd-per-run: 1.00
+optimizations:
+  - flash-attention
+  - token-reduction
+createdAt: "2026-05-16T00:00:00.000Z"

@@ -1,0 +1,25 @@
+# Local dev Postgres for wealth-os. Single service, persistent volume.
+# Usage:  pnpm db:up   /   pnpm db:down   /   pnpm db:reset
+# Falls back to a system-installed Postgres cluster if Docker is unavailable.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wealth_os_pg
+    environment:
+      POSTGRES_USER: wealth_os
+      POSTGRES_PASSWORD: wealth_os
+      POSTGRES_DB: wealth_os
+    ports:
+      - "${WEALTH_OS_PG_PORT:-5432}:5432"
+    volumes:
+      - wealth_os_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wealth_os -d wealth_os"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  wealth_os_pgdata:

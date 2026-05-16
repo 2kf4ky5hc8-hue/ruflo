@@ -1,0 +1,21 @@
+import type { ReactNode } from 'react';
+import './globals.css';
+
+export const metadata = {
+  title: 'Ruflo Wealth',
+  description: 'Personal wealth command centre — decision-support, not regulated advice.',
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en-GB">
+      <body className="min-h-dvh antialiased">
+        {children}
+        <footer className="mx-auto max-w-7xl px-6 py-10 text-xs text-muted">
+          Decision-support, not regulated financial advice. Consult an FCA-authorised
+          adviser for personalised advice.
+        </footer>
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,27 @@
+# wealth-compliance-guardrail agent configuration
+type: wealth-compliance-guardrail
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - banned-phrase-detection
+  - disclaimer-enforcement
+  - pii-redaction
+  - source-freshness-check
+  - risk-cap-validation
+inputs:
+  - any_agent_output
+outputs:
+  - approve_or_reject
+  - fix_up_request
+restrictions:
+  - deterministic-rule-engine-only
+  - blocks-artefact-if-fails
+  - cannot-be-bypassed
+safety:
+  - escalates-to-user-after-n-fix-attempts
+  - logs-every-rejection
+guardrails:
+  - max-budget-usd-per-run: 0.01
+optimizations:
+  - pattern-matching
+createdAt: "2026-05-16T00:00:00.000Z"
