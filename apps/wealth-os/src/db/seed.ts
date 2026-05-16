@@ -110,7 +110,7 @@ async function main() {
       name: seedName,
       baseCurrency: 'GBP',
       taxResidency: 'GB',
-      riskProfile: 'balanced',
+      riskProfile: 'aggressive',
     }).returning();
   }
   if (!user) throw new Error('User insert failed.');
@@ -147,7 +147,7 @@ async function main() {
       newInstrumentSizeCapPct: preset.new_instrument_size_cap_pct.toString(),
       liquidityMinAdvGbp: preset.liquidity_min_adv_gbp.toString(),
       paperTradeDays: preset.paper_trade_days,
-      active: preset.name === 'balanced',
+      active: preset.name === 'aggressive',
     });
   }
 
@@ -158,7 +158,7 @@ async function main() {
       name: `${presetName} allocation`,
       preset: presetName,
       weights,
-      active: presetName === 'balanced',
+      active: presetName === 'aggressive',
     });
   }
 
