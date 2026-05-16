@@ -1,0 +1,27 @@
+# wealth-trade-drafting agent configuration
+type: wealth-trade-drafting
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - trade-ticket-generation
+  - cost-estimation
+  - fx-impact-modelling
+  - tax-impact-estimation
+inputs:
+  - approved_opportunity
+  - holdings
+  - risk_profile
+outputs:
+  - trade_ticket_draft
+restrictions:
+  - never-executes-trades
+  - produces-ticket-only-for-approval-centre
+  - execution-is-separate-signed-call-from-approval
+safety:
+  - cooling-off-period-enforced
+  - sleep-mode-respected
+guardrails:
+  - max-budget-usd-per-run: 0.05
+optimizations:
+  - pattern-matching
+createdAt: "2026-05-16T00:00:00.000Z"

@@ -1,0 +1,27 @@
+# wealth-tax-wrapper agent configuration
+type: wealth-tax-wrapper
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - isa-vs-sipp-vs-gia-comparison
+  - tax-efficiency-ranking
+  - allowance-utilisation-recommendation
+inputs:
+  - holdings
+  - income_profile
+  - tax_rules_yaml
+outputs:
+  - wrapper_recommendation
+  - tax_impact_estimate
+restrictions:
+  - information-not-regulated-advice
+  - sipp-or-lisa-actions-require-adviser-disclaimer
+  - never-suggests-tax-evasion
+safety:
+  - cites-tax-rule-version
+  - includes-speak-to-adviser-line
+guardrails:
+  - max-budget-usd-per-run: 0.10
+optimizations:
+  - pattern-matching
+createdAt: "2026-05-16T00:00:00.000Z"

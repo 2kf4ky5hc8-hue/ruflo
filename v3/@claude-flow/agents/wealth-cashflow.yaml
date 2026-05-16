@@ -1,0 +1,30 @@
+# wealth-cashflow agent configuration
+type: wealth-cashflow
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - transaction-categorisation
+  - waste-detection
+  - subscription-tracking
+  - spare-cash-detection
+inputs:
+  - transactions
+  - categories
+  - allocation_rules
+outputs:
+  - category_corrections
+  - waste_signals
+  - spare_cash_events
+restrictions:
+  - read-only
+  - cannot-move-money
+  - cannot-recommend-investments
+  - large-category-changes-require-approval
+safety:
+  - audit-log-every-mutation
+  - pii-redaction-before-llm
+guardrails:
+  - max-budget-usd-per-run: 0.10
+optimizations:
+  - token-reduction
+createdAt: "2026-05-16T00:00:00.000Z"

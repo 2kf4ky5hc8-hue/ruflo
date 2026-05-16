@@ -4,6 +4,22 @@
 > dashboard → ISA tracker → opportunity inbox → approval centre. **Zero broker
 > write access.** Read-only and recommendation-only.
 
+## Ruflo integration
+
+Wealth OS reuses ruflo's framework rather than reinventing it. Concretely:
+
+| Wealth OS need              | Ruflo package                   | Integration point                                          |
+|-----------------------------|---------------------------------|------------------------------------------------------------|
+| Agent definitions           | `v3/@claude-flow/agents/`       | 10 `wealth-*.yaml` files; registry in `src/ruflo/agents.ts`|
+| Scheduling (weekly review)  | `@claude-flow/hooks` daemon     | `src/ruflo/hooks.ts` registers 6 cron jobs                 |
+| Cross-session memory        | `@claude-flow/memory` (AgentDB) | `src/ruflo/memory.ts` — namespaces `wealth.*`              |
+| PII redaction + validators  | `@claude-flow/security`         | `src/ruflo/security.ts` — Zod schemas, PII regexes         |
+| 3-tier model routing        | ADR-026                         | `wealthAgents[].model` per role (haiku/sonnet/opus)        |
+| Anti-drift swarm topology   | hierarchical/specialised        | `wealth-coach` coordinates, sub-agents have narrow scope   |
+
+The kill switch `WEALTH_MODE=observer` disables every write at the integration
+layer regardless of which subsystem invokes it.
+
 Story-point scale: Fibonacci (1, 2, 3, 5, 8, 13). A point ≈ a half day of focused
 work for one developer who already knows the stack. 13 means "split this".
 

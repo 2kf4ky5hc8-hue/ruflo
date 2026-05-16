@@ -1,0 +1,29 @@
+# wealth-risk-manager agent configuration
+type: wealth-risk-manager
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - rule-evaluation
+  - position-sizing-validation
+  - breach-detection
+  - cooling-off-enforcement
+inputs:
+  - proposed_action
+  - holdings
+  - risk_profile
+outputs:
+  - pass_or_fail
+  - modified_action
+  - breach_record
+restrictions:
+  - deterministic-rule-engine-not-llm
+  - veto-power-over-proposed-actions
+  - llm-only-generates-explanation-text
+safety:
+  - rule-evaluation-100-percent-test-coverage
+  - cannot-override-hard-rules
+guardrails:
+  - max-budget-usd-per-run: 0.02
+optimizations:
+  - pattern-matching
+createdAt: "2026-05-16T00:00:00.000Z"

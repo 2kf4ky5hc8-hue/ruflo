@@ -1,0 +1,29 @@
+# wealth-business-cashflow agent configuration
+type: wealth-business-cashflow
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - runway-calculation
+  - corp-tax-reserve-tracking
+  - dividend-vs-salary-modelling
+  - directors-loan-tracking
+inputs:
+  - business_metrics
+  - business_transactions
+  - tax_rules_yaml
+outputs:
+  - runway_summary
+  - extraction_plan
+  - cashflow_warnings
+restrictions:
+  - never-recommend-extraction-without-runway-check
+  - cash-floor-must-meet-user-configured-months
+  - never-touches-business-account-writes
+safety:
+  - warns-before-killing-cashflow
+  - separates-personal-vs-business
+guardrails:
+  - max-budget-usd-per-run: 0.10
+optimizations:
+  - pattern-matching
+createdAt: "2026-05-16T00:00:00.000Z"

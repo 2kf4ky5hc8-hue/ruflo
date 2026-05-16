@@ -1,0 +1,30 @@
+# wealth-opportunity-scanner agent configuration
+type: wealth-opportunity-scanner
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - undervalued-stock-scan
+  - dividend-opportunity-scan
+  - high-interest-savings-scan
+  - etf-suitability-scan
+  - opportunity-ranking
+inputs:
+  - universe
+  - risk_profile
+  - capacity_summary
+  - preferences
+outputs:
+  - ranked_opportunities
+restrictions:
+  - no-non-public-information
+  - no-coordinated-action-suggestions
+  - worst-case-must-be-within-monthly-loss-cap
+  - excludes-illegal-arbitrage
+safety:
+  - filter-by-liquidity-min
+  - filter-by-fit-score
+guardrails:
+  - max-budget-usd-per-run: 0.20
+optimizations:
+  - pattern-matching
+createdAt: "2026-05-16T00:00:00.000Z"

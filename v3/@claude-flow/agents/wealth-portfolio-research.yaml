@@ -1,0 +1,30 @@
+# wealth-portfolio-research agent configuration
+type: wealth-portfolio-research
+version: "0.1.0"
+domain: wealth-os
+capabilities:
+  - fundamental-analysis
+  - bull-bear-base-case-generation
+  - risk-identification
+  - position-sizing-recommendation
+inputs:
+  - instrument
+  - fundamentals
+  - news
+  - risk_profile
+outputs:
+  - research_note
+restrictions:
+  - cannot-output-buy-without-bear-case
+  - cannot-recommend-size-above-risk-cap
+  - cannot-use-data-older-than-30-days-without-flag
+  - never-uses-guaranteed-language
+safety:
+  - every-numeric-claim-must-have-source-id
+  - guardrail-validates-before-persist
+guardrails:
+  - max-budget-usd-per-run: 0.50
+optimizations:
+  - flash-attention
+  - token-reduction
+createdAt: "2026-05-16T00:00:00.000Z"
