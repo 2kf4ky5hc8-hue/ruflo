@@ -83,10 +83,8 @@ const SEED_INSTITUTIONS = [
 ];
 
 async function main() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required.');
-  }
+  const databaseUrl =
+    process.env.DATABASE_URL ?? 'postgres://wealth_os:wealth_os@localhost:5432/wealth_os';
 
   const sql = postgres(databaseUrl, { max: 1 });
   const db = drizzle(sql);
