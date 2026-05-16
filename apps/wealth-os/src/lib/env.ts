@@ -42,4 +42,11 @@ export const env = {
     pickSecret('TOTP_ENC_KEY', process.env.TOTP_ENC_KEY, DEV_TOTP_ENC_KEY),
   WEALTH_MODE: (process.env.WEALTH_MODE ?? 'advisor') as 'observer' | 'advisor' | 'assisted_live',
   APP_NAME: process.env.APP_NAME ?? 'Ruflo Wealth',
+
+  // Optional Coach LLM narration. Coach works without these.
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? null,
+  COACH_MODEL: process.env.COACH_MODEL ?? 'claude-sonnet-4-6',
+  COACH_MAX_TOKENS: Number(process.env.COACH_MAX_TOKENS ?? 2000),
 };
+
+export const coachEnabled = (): boolean => env.ANTHROPIC_API_KEY !== null && env.ANTHROPIC_API_KEY.length > 0;

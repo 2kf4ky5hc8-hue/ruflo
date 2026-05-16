@@ -26,6 +26,7 @@
     "test:integration": "vitest run --config=vitest.integration.config.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@auth/core": "^0.37.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/qrcode": "^1.5.5",

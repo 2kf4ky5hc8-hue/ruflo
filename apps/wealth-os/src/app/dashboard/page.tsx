@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { AppShell } from '@/components/AppShell';
+import { RunCoachButton } from '@/components/RunCoachButton';
 import { loadSnapshot, gbp } from '@/lib/finance';
 
 export default async function Dashboard() {
@@ -56,18 +57,21 @@ export default async function Dashboard() {
       <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="card">
           <div className="h3">This week's moves</div>
-          {snap.pendingApprovals === 0 ? (
-            <p className="mt-3 subtle">
-              No proposals waiting. As you connect data and run the Coach, the next
-              best actions show up here.
-            </p>
-          ) : (
+          <p className="mt-3 subtle">
+            Run the Coach to see your next 3 informational suggestions, year-end ISA pacing,
+            and a risk summary. The Coach never executes anything — every monetary move
+            still goes through the Approval Centre.
+          </p>
+          {snap.pendingApprovals > 0 && (
             <p className="mt-3">
               <Link className="text-accent underline" href="/approvals">
-                {snap.pendingApprovals} pending approvals →
+                {snap.pendingApprovals} pending approval{snap.pendingApprovals === 1 ? '' : 's'} →
               </Link>
             </p>
           )}
+          <div className="mt-4">
+            <RunCoachButton />
+          </div>
         </div>
 
         <div className="card">
