@@ -13,6 +13,7 @@
     "db:down":      "bash scripts/db.sh down",
     "db:reset":     "bash scripts/db.sh reset",
     "db:migrate":   "bash scripts/db.sh migrate",
+    "db:ensure":    "bash scripts/db.sh ensure",
     "db:seed":      "tsx src/db/seed.ts",
     "db:check":     "tsx scripts/db-check.ts",
     "db:bootstrap": "pnpm db:up && pnpm db:reset && pnpm db:seed && pnpm db:check",

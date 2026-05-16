@@ -65,29 +65,54 @@ sys_pgctl() {
 }
 
 sys_ensure_role_and_db() {
-  # Create role + DB if absent. Requires sudo or postgres-OS-user access.
-  local sql
-  sql="$(cat <<EOF
-DO \$\$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${PGUSER}') THEN
-    CREATE ROLE ${PGUSER} LOGIN PASSWORD '${PGPASSWORD}';
-  END IF;
-END
-\$\$;
-EOF
-)"
+  # Create role + DB if absent. Tries paths in order:
+  #   1. wealth_os user can already connect — nothing to do (idempotent).
+  #   2. Current OS user is a Postgres superuser (e.g. brew on macOS).
+  #   3. sudo available — drop into the postgres OS user.
+  #   4. Running as root — su into postgres.
+  #   5. Print the manual createuser/createdb pair the user can run.
+  local create_role_sql create_db_sql
+  create_role_sql="DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${PGUSER}') THEN CREATE ROLE ${PGUSER} LOGIN PASSWORD '${PGPASSWORD}'; END IF; END \$\$;"
+  create_db_sql="SELECT 'CREATE DATABASE ${PGDATABASE} OWNER ${PGUSER}' WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname='${PGDATABASE}')\\gexec"
+
+  # 1. Already works?
+  if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" \
+       -tAc "SELECT 1" >/dev/null 2>&1; then
+    log "${PGUSER}/${PGDATABASE} ready"
+    return 0
+  fi
+
+  # 2. Current OS user as Postgres superuser (no sudo, no postgres OS user).
+  if psql -h "$PGHOST" -p "$PGPORT" -U "$(whoami)" -d postgres -tAc "SELECT 1" >/dev/null 2>&1; then
+    log "creating role + database as $(whoami)"
+    psql -h "$PGHOST" -p "$PGPORT" -U "$(whoami)" -d postgres -v ON_ERROR_STOP=1 -q -X -c "$create_role_sql" || true
+    psql -h "$PGHOST" -p "$PGPORT" -U "$(whoami)" -d postgres -v ON_ERROR_STOP=1 -q -X -c "$create_db_sql" || true
+    return 0
+  fi
+
+  # 3. sudo path
   if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-    echo "$sql" | sudo -u postgres psql -v ON_ERROR_STOP=1 -q -X
+    log "creating role + database via sudo"
+    echo "$create_role_sql" | sudo -u postgres psql -v ON_ERROR_STOP=1 -q -X
     sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${PGDATABASE}'" \
       | grep -q 1 || sudo -u postgres createdb -O "$PGUSER" "$PGDATABASE"
-  elif [[ "$(whoami)" == "root" ]]; then
-    su - postgres -c "psql -v ON_ERROR_STOP=1 -q -X" <<<"$sql"
+    return 0
+  fi
+
+  # 4. root path
+  if [[ "$(whoami)" == "root" ]]; then
+    log "creating role + database as root (via su postgres)"
+    su - postgres -c "psql -v ON_ERROR_STOP=1 -q -X" <<<"$create_role_sql"
     su - postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='${PGDATABASE}'\"" \
       | grep -q 1 || su - postgres -c "createdb -O ${PGUSER} ${PGDATABASE}"
-  else
-    log "no privileged access; assuming role/DB already exist"
+    return 0
   fi
+
+  # 5. Last resort — tell the user exactly what to run.
+  err "Cannot auto-create role/DB. Run these once as a Postgres superuser:"
+  err "  createuser ${PGUSER} --pwprompt    # password: ${PGPASSWORD}"
+  err "  createdb -O ${PGUSER} ${PGDATABASE}"
+  return 1
 }
 
 sys_up()    { log "starting system Postgres cluster"; sys_pgctl start; wait_for_pg; sys_ensure_role_and_db; }
@@ -123,6 +148,12 @@ cmd_migrate() {
   log "all migrations applied"
 }
 
+cmd_ensure() {
+  # Idempotent: bring up the server (Docker or system) and make sure the
+  # role/database exist. Use this on a brand-new machine before db:bootstrap.
+  if docker_available; then docker_up; else sys_up; fi
+}
+
 cmd_status() {
   if docker_available; then
     docker compose ps postgres || true
@@ -139,6 +170,7 @@ case "${1:-}" in
   down)    cmd_down    ;;
   reset)   cmd_reset   ;;
   migrate) cmd_migrate ;;
+  ensure)  cmd_ensure  ;;
   status)  cmd_status  ;;
-  *)       echo "usage: $0 {up|down|reset|migrate|status}"; exit 2 ;;
+  *)       echo "usage: $0 {up|down|reset|migrate|ensure|status}"; exit 2 ;;
 esac
