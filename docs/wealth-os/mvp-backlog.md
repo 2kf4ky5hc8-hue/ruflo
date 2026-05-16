@@ -38,9 +38,9 @@ Definition of done for every story:
 
 | ID    | Story                                                                                 | Pts | Status | Notes |
 |-------|---------------------------------------------------------------------------------------|-----|--------|-------|
-| F-001 | Apply `0001_initial.sql` migration to Postgres dev DB.                                | 1   | ⏳ | `psql $DATABASE_URL -f src/db/migrations/0001_initial.sql` |
-| F-002 | Wire Drizzle ORM; verify `select 1` from each schema module.                          | 2   | ⏳ | Generated migrations vs hand-written SQL parity test. |
-| F-003 | Run `pnpm db:seed` to load tax rules, risk profiles, default categories.              | 1   | ⏳ | Requires `DATABASE_URL`, optional `SEED_USER_EMAIL`. |
+| F-001 | Apply `0001_initial.sql` migration to Postgres dev DB.                                | 1   | ✅ | Done via `pnpm db:migrate` (29 tables created). |
+| F-002 | Wire Drizzle ORM; verify `select 1` from each schema module.                          | 2   | ✅ | `pnpm db:check` verifies connection + every expected table. |
+| F-003 | Run `pnpm db:seed` to load tax rules, risk profiles, default categories.              | 1   | ✅ | Aggressive profile + allocation rule are active; 10 institutions seeded. |
 | F-004 | Set up Next.js 15 app skeleton (App Router, Tailwind, shadcn/ui).                     | 3   | ⏳ | Single-user mode for MVP. |
 | F-005 | Auth.js with email + TOTP 2FA; session table integration; revoke flow.                | 5   | ⏳ | No password reset by email in MVP — recovery codes only. |
 | F-006 | Audit-log middleware: every mutation writes a row to `audit_events`.                  | 3   | ⏳ | Use a Drizzle hook + request-context store. |
@@ -149,14 +149,14 @@ Definition of done for every story:
 
 ## Epic 7 — Risk engine  (target: week 7)
 
-| ID    | Story                                                                                  | Pts | Notes |
-|-------|----------------------------------------------------------------------------------------|-----|-------|
-| K-701 | Pure-function rule evaluator: takes `(profile, holdings, action)` → pass/fail+reasons. | 5   | Deterministic; 100% test coverage required. |
-| K-702 | Block proposed_action insert if rule-eval fails; surface reason in UI.                 | 2   |       |
-| K-703 | Daily breach scan: writes `risk_breaches` for current portfolio violations.            | 3   |       |
-| K-704 | Concentration warning at 1.5× cap.                                                     | 2   |       |
-| K-705 | Cooling-off enforcement: block approval if last decision < `cooling_off_minutes` ago.  | 2   |       |
-| K-706 | Sleep-mode enforcement: block live-mode actions outside window.                        | 2   | Live mode not enabled in MVP, but middleware must exist. |
+| ID    | Story                                                                                  | Pts | Status | Notes |
+|-------|----------------------------------------------------------------------------------------|-----|--------|-------|
+| K-701 | Pure-function rule evaluator: takes `(profile, holdings, action)` → pass/fail+reasons. | 5   | ✅ | `src/risk/evaluator.ts` + 24 tests. Sleep-mode + new-instrument cap baked in. |
+| K-702 | Block `proposed_action` insert if rule-eval fails; surface reason in UI.               | 2   | ⏳ | Needs DB-layer wiring (Drizzle hook on insert). |
+| K-703 | Daily breach scan: writes `risk_breaches` for current portfolio violations.            | 3   | ⏳ | Reuses `evaluateRisk` over current portfolio snapshot. |
+| K-704 | Concentration warning at 1.5× cap.                                                     | 2   | ⏳ | Already produces "approaching cap" warnings at 0.9× — extend to 1.5×. |
+| K-705 | Cooling-off enforcement: block approval if last decision < `cooling_off_minutes` ago.  | 2   | ⏳ | Approval Centre middleware. |
+| K-706 | Sleep-mode enforcement: block live-mode actions outside window.                        | 2   | ✅ | Pure-function check inside evaluator; live execution gating arrives with K-702. |
 
 **Epic total: 16 pts**
 
@@ -217,6 +217,28 @@ Definition of done for every story:
 
 ---
 
+## Epic 12 — Wealth Coach module  (target: week 8–9)
+
+The personalised orchestrator that turns raw data and per-agent outputs into
+plain-English guidance. Coach never generates net-new recommendations on its
+own — it composes them from other agents' results, sequenced by what makes
+sense for *this* user *this* week.
+
+| ID    | Story                                                                                  | Pts | Notes |
+|-------|----------------------------------------------------------------------------------------|-----|-------|
+| WC-1201 | Onboarding flow: 4-step wizard (profile, accounts, goals, risk tolerance check).     | 5   | Writes `users`, `goals`, sets active `risk_profile`, confirms allocation preset. |
+| WC-1202 | Personalised playbook generator: 6-month written plan derived from goals + profile.  | 5   | Markdown stored as a `reports` row of kind `playbook`. |
+| WC-1203 | "Next 3 actions" widget: top-N pending `proposed_action` rows ranked by fit + urgency.| 3   | Re-uses risk evaluator score + age + ISA-deadline urgency multiplier. |
+| WC-1204 | Monthly review prompt: cron on the 1st of each month, opens an in-app card.          | 3   | Calls Coach agent to synthesise the month. |
+| WC-1205 | "Talk to the Coach" inline thread: anchored to a dashboard card or an opportunity.   | 5   | Conversation persists in `agent_runs`; PII-redacted before LLM call. |
+| WC-1206 | Coach guardrail: refuses tax/regulated-advice questions; routes to disclaimer + adviser link. | 3 | Deterministic intent classifier upstream of LLM. |
+| WC-1207 | "Are you on track?" status: traffic light per active goal vs current trajectory.     | 3   | Pure-function projector over `goals` + recent contribution rate. |
+| WC-1208 | Coach memory pinning: surface notes the user marked "remember" in subsequent reviews. | 2   | Uses `@claude-flow/memory` (optional peer dep) when available. |
+
+**Epic total: 29 pts**
+
+---
+
 ## Totals & critical path
 
 | Epic                                | Pts |
@@ -233,14 +255,27 @@ Definition of done for every story:
 | 9 Approval centre                   | 12  |
 | 10 Weekly Wealth Review             | 13  |
 | 11 Quality & launch readiness       | 18  |
-| **MVP total**                       | **237** |
+| 12 Wealth Coach module              | 29  |
+| **MVP total**                       | **266** |
 
-At 4–6 pts per focused day (solo dev, real life), MVP lands in **8–10 weeks** as planned.
+At 4–6 pts per focused day (solo dev, real life), MVP lands in **9–11 weeks** with
+the Wealth Coach module included.
 
-Critical path: F-001 → F-005 → I-101/I-105 → C-201 → D-301 → A-401 → K-701 → P-901 → W-1001.
+Critical path: F-001 → F-005 → I-101/I-105 → C-201 → D-301 → A-401 → K-701 → P-901 → W-1001 → WC-1201/WC-1203.
 
 Cut lines if time runs short, in order:
 1. C-202 (LLM categoriser) — fall back to rules + manual.
 2. I-105 (TrueLayer) — fall back to CSV.
 3. O-503 (dividend filter) — keep O-501/O-502/O-504.
 4. R-603 (research generator) — keep R-601/R-602/R-605 (data view only).
+5. WC-1205 / WC-1208 — Coach without conversational thread or memory pinning is still useful.
+
+## Done so far (this session)
+
+| ID    | Story | Verified by |
+|-------|-------|-------------|
+| F-001 | Migration applies cleanly (29 tables). | `pnpm db:migrate` + `pnpm db:check` |
+| F-002 | Drizzle ORM connects, all expected tables present, audit_events writable. | `pnpm db:check` (10/10 green) |
+| F-003 | Seed loads aggressive profile, allocation, ISA year, categories, institutions. | `pnpm db:seed` + `pnpm db:check` |
+| K-701 | Deterministic risk evaluator with 24 tests covering position cap, speculative cap, crypto cap, cash floor, ISA allowance, sleep mode, derivatives gating, invalid input, empty-portfolio edge case, and determinism. | `pnpm test` (38/38 green) |
+| K-706 | Sleep-mode rule baked into evaluator (UK timezone, DST-aware, midnight wrap). | Test: "warns on a buy issued during the UK sleep window". |

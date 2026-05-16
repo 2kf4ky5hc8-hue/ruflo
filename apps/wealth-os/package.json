@@ -5,26 +5,34 @@
   "type": "module",
   "description": "Ruflo Wealth OS — personal wealth command centre (decision-support, not regulated advice)",
   "scripts": {
+    "db:up":       "bash scripts/db.sh up",
+    "db:down":     "bash scripts/db.sh down",
+    "db:reset":    "bash scripts/db.sh reset",
+    "db:migrate":  "bash scripts/db.sh migrate",
+    "db:seed":     "tsx src/db/seed.ts",
+    "db:check":    "tsx scripts/db-check.ts",
+    "db:bootstrap":"pnpm db:up && pnpm db:reset && pnpm db:seed && pnpm db:check",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "db:push":     "drizzle-kit push",
+    "db:studio":   "drizzle-kit studio",
+    "typecheck":   "tsc --noEmit",
+    "test":        "vitest run",
+    "test:watch":  "vitest"
   },
   "dependencies": {
-    "@claude-flow/hooks": "workspace:*",
-    "@claude-flow/memory": "workspace:*",
-    "@claude-flow/security": "workspace:*",
     "drizzle-orm": "^0.36.0",
     "postgres": "^3.4.5",
     "yaml": "^2.6.0",
     "zod": "^3.23.8"
   },
+  "peerDependencies": {
+    "@claude-flow/hooks": "*",
+    "@claude-flow/memory": "*",
+    "@claude-flow/security": "*"
+  },
   "peerDependenciesMeta": {
-    "@claude-flow/hooks": { "optional": true },
-    "@claude-flow/memory": { "optional": true },
+    "@claude-flow/hooks":    { "optional": true },
+    "@claude-flow/memory":   { "optional": true },
     "@claude-flow/security": { "optional": true }
   },
   "devDependencies": {
