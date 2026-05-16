@@ -47,6 +47,10 @@ export const env = {
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? null,
   COACH_MODEL: process.env.COACH_MODEL ?? 'claude-sonnet-4-6',
   COACH_MAX_TOKENS: Number(process.env.COACH_MAX_TOKENS ?? 2000),
+
+  // Personal monthly spend cap on Coach LLM narration. Deterministic report
+  // is free and always runs. Default $2/month — cheap enough to forget.
+  COACH_MONTHLY_BUDGET_USD: Number(process.env.COACH_MONTHLY_BUDGET_USD ?? 2),
 };
 
 export const coachEnabled = (): boolean => env.ANTHROPIC_API_KEY !== null && env.ANTHROPIC_API_KEY.length > 0;

@@ -46,6 +46,8 @@ export async function POST(): Promise<NextResponse> {
       observerMode: result.observerMode,
       narrated: Boolean(result.report.llmNarration),
       guardrail: result.report.guardrail ?? null,
+      budget: result.budget,
+      costUsd: result.costUsd,
       report: result.report,
     });
   } catch (err) {

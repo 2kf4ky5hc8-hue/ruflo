@@ -217,16 +217,27 @@ interface FakeDb {
   updates: Array<{ table: string; values: any; where: any }>;
 }
 
-function fakeDb(): { db: any; sink: FakeDb } {
+function fakeDb(opts: { spentRows?: Array<{ costUsd: string | null }> } = {}): { db: any; sink: FakeDb } {
   const sink: FakeDb = { inserts: [], updates: [] };
+  const spentRows = opts.spentRows ?? [];
   let nextId = 1;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db: any = {
-    insert(table: any) {
-      const tableName = (table as { [Symbol.toStringTag]?: string })[Symbol.toStringTag] ?? 'unknown';
+    select(_cols?: any) {
+      return {
+        from(_table: any) {
+          return {
+            where(_w: any) {
+              return Promise.resolve(spentRows);
+            },
+          };
+        },
+      };
+    },
+    insert(_table: any) {
       return {
         values(values: any) {
-          sink.inserts.push({ table: String(table), values });
+          sink.inserts.push({ table: String(_table), values });
           return {
             returning(_cols: any) {
               const id = `fake-${nextId++}`;
@@ -236,12 +247,12 @@ function fakeDb(): { db: any; sink: FakeDb } {
         },
       };
     },
-    update(table: any) {
+    update(_table: any) {
       return {
         set(values: any) {
           return {
             where(where: any) {
-              sink.updates.push({ table: String(table), values, where });
+              sink.updates.push({ table: String(_table), values, where });
               const p = Promise.resolve([]);
               (p as any).catch = (cb: any) => p.then(undefined, cb);
               return p;
@@ -307,6 +318,7 @@ describe('runCoach orchestrator', () => {
     const { db } = fakeDb();
     const narrator: Narrator = vi.fn(async () => ({
       text: 'Your cash buffer is healthy and your ISA allowance has £12,000 unused. Decision-support, not regulated financial advice.',
+      model: 'claude-sonnet-4-6',
       tokensIn: 100,
       tokensOut: 50,
     }));
@@ -329,6 +341,7 @@ describe('runCoach orchestrator', () => {
     const { db } = fakeDb();
     const narrator: Narrator = async () => ({
       text: 'This is a guaranteed return — buy now for a risk-free yield.',
+      model: 'claude-sonnet-4-6',
     });
 
     const out = await runCoach({
@@ -352,6 +365,7 @@ describe('runCoach orchestrator', () => {
 
     const narrator: Narrator = async () => ({
       text: 'OK. Decision-support, not regulated financial advice.',
+      model: 'claude-sonnet-4-6',
     });
 
     await runCoach({
@@ -368,5 +382,90 @@ describe('runCoach orchestrator', () => {
     const input = spy.mock.calls[0]![0] as string;
     expect(input).toContain('Coach report');
     spy.mockRestore();
+  });
+});
+
+describe('runCoach budget guard', () => {
+  it('always attaches budget status to the report (no narrator needed)', async () => {
+    const { db } = fakeDb({ spentRows: [{ costUsd: '0.5' }, { costUsd: '0.25' }] });
+    const out = await runCoach({
+      db,
+      userId: 'user-1',
+      now: NOW,
+      modeOverride: 'advisor',
+      budgetCapUsdOverride: 2,
+    });
+
+    expect(out.budget.monthSpentUsd).toBeCloseTo(0.75, 6);
+    expect(out.budget.monthCapUsd).toBe(2);
+    expect(out.budget.exceeded).toBe(false);
+    expect(out.report.budget).toEqual(out.budget);
+  });
+
+  it('skips the narrator when monthly spend has reached the cap', async () => {
+    const { db } = fakeDb({ spentRows: [{ costUsd: '2.5' }] }); // already over cap
+    const narrator: Narrator = vi.fn(async () => ({
+      text: 'should never run',
+      model: 'claude-sonnet-4-6',
+      tokensIn: 1000,
+      tokensOut: 500,
+    }));
+
+    const out = await runCoach({
+      db,
+      userId: 'user-1',
+      now: NOW,
+      modeOverride: 'advisor',
+      narrator,
+      budgetCapUsdOverride: 2,
+    });
+
+    expect(narrator).not.toHaveBeenCalled();
+    expect(out.budget.exceeded).toBe(true);
+    expect(out.report.llmNarration).toBeUndefined();
+    expect(out.report.guardrail).toBeUndefined();
+    expect(out.costUsd).toBe(0);
+  });
+
+  it('computes and reports cost in USD when narrator runs', async () => {
+    const { db, sink } = fakeDb({ spentRows: [] });
+    const narrator: Narrator = async () => ({
+      text: 'A short clean note. Decision-support, not regulated financial advice.',
+      model: 'claude-sonnet-4-6',
+      tokensIn: 1_000_000,   // $3.00
+      tokensOut: 100_000,    // $1.50
+    });
+
+    const out = await runCoach({
+      db,
+      userId: 'user-1',
+      now: NOW,
+      modeOverride: 'advisor',
+      narrator,
+      budgetCapUsdOverride: 5,
+    });
+
+    expect(out.costUsd).toBeCloseTo(4.5, 6);
+
+    // agent_runs was updated with cost as a 6-dp string.
+    const agentRunUpdate = sink.updates.find((u) => u.values.costUsd != null);
+    expect(agentRunUpdate?.values.costUsd).toBe('4.500000');
+    expect(agentRunUpdate?.values.tokensIn).toBe(1_000_000);
+    expect(agentRunUpdate?.values.tokensOut).toBe(100_000);
+  });
+
+  it('leaves agent_runs.costUsd null when no narrator runs', async () => {
+    const { db, sink } = fakeDb({ spentRows: [] });
+    const out = await runCoach({
+      db,
+      userId: 'user-1',
+      now: NOW,
+      modeOverride: 'advisor',
+      budgetCapUsdOverride: 5,
+    });
+
+    expect(out.costUsd).toBe(0);
+    const agentRunUpdate = sink.updates.at(-1);
+    expect(agentRunUpdate?.values.costUsd).toBeNull();
   });
 });

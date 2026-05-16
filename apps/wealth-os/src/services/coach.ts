@@ -33,7 +33,9 @@ import {
   type TaxRules,
 } from '../tax';
 import { redactForLLM, evaluateGuardrail } from '../security/security';
-import { env, coachEnabled } from '../lib/env';
+import { env } from '../lib/env';
+import { costUsd } from './pricing';
+import { budgetStatus, monthlySpendUsd, utcMonthStart, type BudgetStatus } from './coach-budget';
 
 const DISCLAIMER =
   'Decision-support, not regulated financial advice. Verify against gov.uk ' +
@@ -84,6 +86,8 @@ export interface CoachReport {
   /** Optional readable retelling produced by the LLM narrator. */
   llmNarration?: string;
   guardrail?: { passed: boolean; flagged: string[] };
+  /** Monthly spend status. Always populated. `exceeded` means the narrator was skipped to protect the personal budget. */
+  budget?: BudgetStatus;
   disclaimer: string;
   taxRulesVersion: string;
 }
@@ -278,9 +282,10 @@ export interface NarratorRequest {
 
 export interface NarratorResponse {
   text: string;
+  /** The exact model whose tokens are reported below — drives cost pricing. */
+  model: string;
   tokensIn?: number;
   tokensOut?: number;
-  costUsd?: number;
 }
 
 export type Narrator = (req: NarratorRequest) => Promise<NarratorResponse>;
@@ -333,6 +338,7 @@ export function createAnthropicNarrator(opts: {
       .join('\n');
     return {
       text,
+      model: opts.model,
       tokensIn: resp.usage?.input_tokens,
       tokensOut: resp.usage?.output_tokens,
     };
@@ -347,6 +353,8 @@ export interface RunCoachResult {
   reportId: string | null;       // null when observer mode skipped persistence
   agentRunId: string | null;     // null when observer mode skipped persistence
   observerMode: boolean;
+  budget: BudgetStatus;          // always populated
+  costUsd: number;               // USD spent on THIS run (0 if no narration)
   tokensIn?: number;
   tokensOut?: number;
 }
@@ -359,9 +367,12 @@ export async function runCoach(args: {
   now?: Date;
   /** Override the env reading for tests. */
   modeOverride?: 'observer' | 'advisor';
+  /** Override the monthly cap for tests. Default reads env.COACH_MONTHLY_BUDGET_USD. */
+  budgetCapUsdOverride?: number;
 }): Promise<RunCoachResult> {
   const now = args.now ?? new Date();
   const mode = args.modeOverride ?? (env.WEALTH_MODE === 'observer' ? 'observer' : 'advisor');
+  const capUsd = args.budgetCapUsdOverride ?? env.COACH_MONTHLY_BUDGET_USD;
 
   // 1. Audit row — created up front so even a crash leaves a trace.
   let agentRunId: string | null = null;
@@ -384,11 +395,24 @@ export async function runCoach(args: {
     const rules = getTaxRules();
     const report = buildCoachReport({ snap, rules, now });
 
+    // 3. Budget read — cheap one-row sum. The deterministic report is free
+    //    and always runs; only narration is gated.
+    const spent = mode === 'observer'
+      ? 0
+      : await monthlySpendUsd(args.db, { userId: args.userId, now });
+    const budget = budgetStatus({
+      spentUsd: spent,
+      capUsd,
+      monthStart: utcMonthStart(now),
+    });
+    report.budget = budget;
+
     let tokensIn: number | undefined;
     let tokensOut: number | undefined;
+    let runCostUsd = 0;
 
-    // 3. Optional LLM narration
-    if (args.narrator && mode !== 'observer') {
+    // 4. Optional LLM narration — skipped silently when budget is exceeded.
+    if (args.narrator && mode !== 'observer' && !budget.exceeded) {
       const prompt = buildNarratorPrompt(report);
       // Redact PII before sending to the model. The deterministic report
       // shouldn't contain raw PII either, but redact again as defence in depth.
@@ -408,9 +432,10 @@ export async function runCoach(args: {
       }
       tokensIn = resp.tokensIn;
       tokensOut = resp.tokensOut;
+      runCostUsd = costUsd(resp.model, tokensIn, tokensOut);
     }
 
-    // 4. Persist
+    // 5. Persist
     let reportId: string | null = null;
     if (mode !== 'observer') {
       const [r] = await args.db
@@ -433,7 +458,8 @@ export async function runCoach(args: {
             endedAt: new Date(),
             tokensIn,
             tokensOut,
-            output: { reportId },
+            costUsd: runCostUsd > 0 ? runCostUsd.toFixed(6) : null,
+            output: { reportId, budget },
           })
           .where(eq(agentRuns.id, agentRunId));
       }
@@ -444,6 +470,8 @@ export async function runCoach(args: {
       reportId,
       agentRunId,
       observerMode: mode === 'observer',
+      budget,
+      costUsd: runCostUsd,
       tokensIn,
       tokensOut,
     };

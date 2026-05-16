@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CoachReport, RiskSeverity } from '@/services/coach';
+import type { BudgetStatus } from '@/services/coach-budget';
 
 interface RunResponse {
   ok: boolean;
@@ -10,7 +11,13 @@ interface RunResponse {
   observerMode?: boolean;
   narrated?: boolean;
   guardrail?: { passed: boolean; flagged: string[] } | null;
+  budget?: BudgetStatus;
+  costUsd?: number;
   report?: CoachReport;
+}
+
+function usd(n: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n);
 }
 
 const severityClasses: Record<RiskSeverity, string> = {
@@ -65,6 +72,21 @@ export function RunCoachButton() {
           {result?.observerMode && (
             <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               Observer mode: report generated but not saved.
+            </p>
+          )}
+
+          {result?.budget && (
+            <p className={`rounded-md border p-3 text-sm ${
+              result.budget.exceeded
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-line text-muted'
+            }`}>
+              Coach LLM spend this month: <strong>{usd(result.budget.monthSpentUsd)}</strong>
+              {' / '}{usd(result.budget.monthCapUsd)} cap
+              {result.costUsd && result.costUsd > 0 ? ` · this run ${usd(result.costUsd)}` : ''}
+              {result.budget.exceeded && (
+                <> · <strong>cap reached</strong> — narration skipped, deterministic report below is unaffected.</>
+              )}
             </p>
           )}
 
