@@ -8,6 +8,7 @@
 import { db } from '../lib/db';
 import { loadSnapshot, gbp, type FinanceSnapshot } from '../lib/finance';
 import { reports } from '../db/schema/index';
+import { getTaxRules, isaStatus, daysUntilTaxYearEnd, taxYearFor } from '../tax';
 
 interface Allocation {
   emergency_fund: number;
@@ -29,7 +30,15 @@ function compoundedValue(monthlyContribution: number, monthlyRate: number, month
   return monthlyContribution * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
 }
 
-function buildMarkdown(snap: FinanceSnapshot): string {
+function buildMarkdown(snap: FinanceSnapshot, now: Date = new Date()): string {
+  const rules = getTaxRules();
+  const isa = isaStatus(rules, {
+    depositedGbp: snap.isa?.deposited ?? 0,
+    now,
+  });
+  const taxYear = taxYearFor(now);
+  const daysToYearEnd = daysUntilTaxYearEnd(now);
+
   const monthlySpare = Math.max(0, snap.monthlyIncomeGbp - snap.monthlyExpensesGbp);
   const cashFloor = (snap.activeRiskProfile?.cashFloorMonths ?? 3) * snap.monthlyExpensesGbp;
   const cashGap = Math.max(0, cashFloor - snap.cashGbp);
@@ -51,7 +60,7 @@ function buildMarkdown(snap: FinanceSnapshot): string {
     targets.emergency_fund = Math.min(monthlySpare, cashGap / Math.max(1, months));
   }
 
-  const isaPlanMonthly = Math.max(0, Math.min(targets.isa, (snap.isa?.remaining ?? 0) / 12));
+  const isaPlanMonthly = Math.max(0, Math.min(targets.isa, isa.remainingGbp / 12));
   const projections = [3, 5, 7, 10].map((r) => {
     const months = 6;
     const monthlyRate = r / 100 / 12;
@@ -74,7 +83,7 @@ function buildMarkdown(snap: FinanceSnapshot): string {
   lines.push(`- **Net worth:** ${gbp(snap.netWorthGbp)} across ${gbp(snap.cashGbp)} cash · ${gbp(snap.isaValueGbp)} ISA · ${gbp(snap.giaValueGbp)} GIA · ${gbp(snap.businessGbp)} business. Debt: ${gbp(snap.debtGbp)}.`);
   lines.push(`- **Monthly cashflow:** ${gbp(snap.monthlyIncomeGbp)} in, ${gbp(snap.monthlyExpensesGbp)} out. Spare: **${gbp(monthlySpare)}/month**.`);
   lines.push(`- **Risk profile:** ${snap.activeRiskProfile?.name ?? '—'} (cash floor ${snap.activeRiskProfile?.cashFloorMonths ?? '—'} months).`);
-  lines.push(`- **ISA allowance used:** ${gbp(snap.isa?.deposited ?? 0)} of ${gbp(snap.isa?.allowance ?? 20000)} (${gbp(snap.isa?.remaining ?? 0)} remaining).`);
+  lines.push(`- **ISA allowance used:** ${gbp(isa.depositedGbp)} of ${gbp(isa.allowanceGbp)} (${gbp(isa.remainingGbp)} remaining). Tax year ${taxYear.number}/${(taxYear.number + 1) % 100}, **${daysToYearEnd} day${daysToYearEnd === 1 ? '' : 's'}** until 5 April.`);
 
   lines.push(``);
   lines.push(`## The next ${horizon}`);
@@ -99,8 +108,11 @@ function buildMarkdown(snap: FinanceSnapshot): string {
   lines.push(``);
   lines.push(`### 2. Use the ISA wrapper before the tax year ends`);
   lines.push(`Per the **${snap.activeAllocation?.preset ?? 'default'}** allocation, route **${gbp(targets.isa)}/month** into the ISA.`);
-  if ((snap.isa?.remaining ?? 0) > 0) {
-    lines.push(`Remaining allowance for this tax year: **${gbp(snap.isa?.remaining ?? 0)}**. Even-pace contribution: ${gbp((snap.isa?.remaining ?? 0) / 12)}/month.`);
+  if (isa.remainingGbp > 0) {
+    lines.push(`Remaining allowance for this tax year: **${gbp(isa.remainingGbp)}**. Even-pace contribution: ${gbp(isa.evenPaceMonthlyGbp)}/month.`);
+    if (daysToYearEnd <= 30) {
+      lines.push(`> Only ${daysToYearEnd} day${daysToYearEnd === 1 ? '' : 's'} left to use this year's allowance — it doesn't roll over.`);
+    }
   } else {
     lines.push(`This year's ISA allowance is fully used — move excess to a GIA until 6 April.`);
   }
@@ -139,7 +151,7 @@ function buildMarkdown(snap: FinanceSnapshot): string {
     lines.push(`| Annual return | Projected ISA value |`);
     lines.push(`|---|---|`);
     for (const p of projections) {
-      lines.push(`| ${p.rate}% | ${gbp((snap.isa?.deposited ?? 0) + p.fv)} |`);
+      lines.push(`| ${p.rate}% | ${gbp(isa.depositedGbp + p.fv)} |`);
     }
   }
 
@@ -151,6 +163,9 @@ function buildMarkdown(snap: FinanceSnapshot): string {
   lines.push(`- Every action above £1,000 will go to the Approval Centre.`);
   lines.push(``);
   lines.push(`*Re-run this playbook from settings any time your numbers materially change.*`);
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(`*Tax rules version: ${rules.version}. ${rules.disclaimers.primary.split('\n').join(' ').trim()}*`);
 
   return lines.join('\n');
 }
