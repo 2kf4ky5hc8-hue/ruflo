@@ -22,7 +22,8 @@
     "db:studio":    "drizzle-kit studio",
     "typecheck":    "tsc --noEmit",
     "test":         "vitest run",
-    "test:watch":   "vitest"
+    "test:watch":   "vitest",
+    "test:integration": "vitest run --config=vitest.integration.config.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
@@ -39,16 +40,6 @@
     "react-dom": "^18.3.1",
     "yaml": "^2.6.0",
     "zod": "^3.23.8"
-  },
-  "peerDependencies": {
-    "@claude-flow/hooks": "*",
-    "@claude-flow/memory": "*",
-    "@claude-flow/security": "*"
-  },
-  "peerDependenciesMeta": {
-    "@claude-flow/hooks":    { "optional": true },
-    "@claude-flow/memory":   { "optional": true },
-    "@claude-flow/security": { "optional": true }
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

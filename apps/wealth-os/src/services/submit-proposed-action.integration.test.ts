@@ -1,7 +1,10 @@
-// Integration test — requires DATABASE_URL pointing at a Postgres with the
-// 0001 schema applied AND the seed (db:bootstrap) loaded. We don't reset
-// between cases; instead each case scopes its assertions to the rows it
-// just inserted.
+// Integration test — requires:
+//   * RUN_INTEGRATION=1 in env (opt-in gate)
+//   * DATABASE_URL pointing at a Postgres with the schema applied
+//   * `pnpm db:bootstrap` already run (seed user must exist)
+//
+// Without the gate, the whole suite is skipped so `pnpm test:integration`
+// stays clean in environments that don't have a live DB.
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
@@ -11,6 +14,7 @@ import { proposedActions, users } from '../db/schema/index';
 import type { PortfolioState, ProposedAction } from '../risk/types';
 import { submitProposedAction } from './submit-proposed-action';
 
+const ENABLED = process.env.RUN_INTEGRATION === '1';
 const URL = process.env.DATABASE_URL ?? 'postgres://wealth_os:wealth_os@localhost:5432/wealth_os';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +49,7 @@ const blockingAction: ProposedAction = {
 const DAYTIME = new Date('2026-05-16T12:00:00Z');
 
 beforeAll(async () => {
+  if (!ENABLED) return;
   sqlClient = postgres(URL, { max: 1, idle_timeout: 5 });
   db = drizzle(sqlClient);
   const [u] = await db.select({ id: users.id }).from(users).limit(1);
@@ -53,10 +58,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (!ENABLED) return;
   await sqlClient.end();
 });
 
-describe('submitProposedAction', () => {
+describe.skipIf(!ENABLED)('submitProposedAction (integration)', () => {
   it('inserts an allowed action and returns the new row id', async () => {
     const r = await submitProposedAction(db, {
       userId,

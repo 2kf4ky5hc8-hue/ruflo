@@ -6,6 +6,11 @@ export const metadata = {
   description: 'Personal wealth command centre — decision-support, not regulated advice.',
 };
 
+// Every route reads from the user's DB at request time. Static prerendering
+// would just fail at build with ECONNREFUSED — opt the whole app into dynamic
+// rendering so `next build` doesn't try.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en-GB">

@@ -1,9 +1,11 @@
 // K-702 — wire the risk evaluator into the proposed_action insert path.
 //
-// Every proposal that reaches the Approval Centre passes through here first.
-// If the evaluator blocks it, we never insert. If the evaluator allows it
-// (with or without warnings), we attach the evaluation to the row so the UI
-// can surface reasons, alternatives, and the suggested smaller amount.
+// Two layers:
+//   * `decideOnProposedAction` is PURE. Same inputs -> same outputs. No DB,
+//     no clock reads other than the one passed in. This is what we unit-test.
+//   * `submitProposedAction` is the orchestrator. It loads the risk profile,
+//     calls the pure decider, and (only when the decision is "insert")
+//     writes the row.
 //
 // Kill switch: when WEALTH_MODE=observer is set in env, nothing is written
 // regardless of evaluator outcome.
@@ -49,30 +51,112 @@ export interface SubmitInput {
 }
 
 export type SubmitResult =
-  | {
-      outcome: 'inserted';
-      proposedActionId: string;
-      evaluation: RiskEvaluation;
-    }
-  | {
-      outcome: 'blocked';
-      reason: string;
-      evaluation: RiskEvaluation;
-    }
-  | {
-      outcome: 'observer_mode';
-      reason: string;
-      evaluation: RiskEvaluation;
-    }
-  | {
-      outcome: 'profile_missing';
-      reason: string;
-    };
+  | { outcome: 'inserted';        proposedActionId: string; evaluation: RiskEvaluation }
+  | { outcome: 'blocked';         reason: string;            evaluation: RiskEvaluation }
+  | { outcome: 'observer_mode';   reason: string;            evaluation: RiskEvaluation }
+  | { outcome: 'profile_missing'; reason: string };
 
 const DEFAULT_EXPIRY_MIN = 60 * 24 * 7; // 7 days
 
-function profileRowToProfile(row: typeof riskProfiles.$inferSelect): RiskProfile {
-  // numeric(20,4) columns come back as strings via postgres-js / Drizzle.
+// ────────────────────────────────────────────────────────────────────────────
+// Pure layer — no DB, no env, no clock.
+
+export type WealthMode = 'advisor' | 'observer';
+
+export type InsertableRow = typeof proposedActions.$inferInsert;
+
+export type Decision =
+  | { kind: 'insert';        evaluation: RiskEvaluation; values: InsertableRow }
+  | { kind: 'block';         evaluation: RiskEvaluation; reason: string }
+  | { kind: 'observer_mode'; evaluation: RiskEvaluation; reason: string };
+
+export function decideOnProposedAction(args: {
+  input: SubmitInput;
+  profile: RiskProfile;
+  mode: WealthMode;
+  now: Date;
+}): Decision {
+  const { input, profile, mode, now } = args;
+
+  const evaluation = evaluateRisk(input.action, input.portfolio, profile, input.context ?? { now });
+
+  if (mode === 'observer') {
+    return {
+      kind: 'observer_mode',
+      evaluation,
+      reason: 'WEALTH_MODE=observer is set; no writes performed.',
+    };
+  }
+
+  if (evaluation.blocked) {
+    return {
+      kind: 'block',
+      evaluation,
+      reason: evaluation.breachedRules
+        .filter((b) => b.severity === 'block')
+        .map((b) => `${b.rule}: ${b.message}`)
+        .join('  |  '),
+    };
+  }
+
+  const reasonText = [input.caller.extraReason, ...evaluation.reasons]
+    .filter(Boolean)
+    .join('\n');
+
+  const expiresAt = new Date(
+    now.getTime() + (input.caller.expiresInMinutes ?? DEFAULT_EXPIRY_MIN) * 60_000,
+  );
+
+  const alternatives = buildAlternatives(evaluation);
+
+  const values: InsertableRow = {
+    userId: input.userId,
+    agent: input.agent,
+    kind: input.dbKind,
+    payload: {
+      action: input.action,
+      portfolio: input.portfolio,
+      evaluation: {
+        allowed: evaluation.allowed,
+        requiresApproval: evaluation.requiresApproval,
+        warnings: evaluation.warnings,
+        breachedRules: evaluation.breachedRules,
+      },
+    },
+    reason: reasonText,
+    upside: input.caller.upside ?? null,
+    downside: input.caller.downside ?? null,
+    riskScore: evaluation.riskScore,
+    confidence: input.caller.confidence.toString(),
+    amountAtRisk: input.action.amountGbp.toString(),
+    alternatives: alternatives.length > 0 ? alternatives : null,
+    expiresAt,
+    status: 'pending',
+  };
+
+  return { kind: 'insert', evaluation, values };
+}
+
+function buildAlternatives(evaluation: RiskEvaluation): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  if (evaluation.suggestedSaferAlternative) {
+    out.push({
+      kind: evaluation.suggestedSaferAlternative.kind,
+      description: evaluation.suggestedSaferAlternative.description,
+    });
+  }
+  if (evaluation.suggestedAdjustment) {
+    out.push({
+      kind: 'reduce_amount',
+      description: evaluation.suggestedAdjustment.reason,
+      newAmountGbp: evaluation.suggestedAdjustment.newAmountGbp,
+    });
+  }
+  return out;
+}
+
+// numeric(20,4) columns come back as strings via postgres-js / Drizzle.
+export function profileRowToProfile(row: typeof riskProfiles.$inferSelect): RiskProfile {
   const num = (v: unknown): number => Number(v);
   return {
     name: row.name,
@@ -97,16 +181,18 @@ function profileRowToProfile(row: typeof riskProfiles.$inferSelect): RiskProfile
   };
 }
 
+function readMode(): WealthMode {
+  return process.env.WEALTH_MODE === 'observer' ? 'observer' : 'advisor';
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Orchestrator — touches the DB.
+
 export async function submitProposedAction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: PostgresJsDatabase<any>,
   input: SubmitInput,
 ): Promise<SubmitResult> {
-  // 1. Kill switch
-  const mode = process.env.WEALTH_MODE ?? 'advisor';
-  // We still run the evaluator so the caller learns what *would* have happened.
-
-  // 2. Load active risk profile
   const profileRows = await db
     .select()
     .from(riskProfiles)
@@ -121,97 +207,28 @@ export async function submitProposedAction(
   }
 
   const profile = profileRowToProfile(profileRows[0]!);
+  const decision = decideOnProposedAction({
+    input,
+    profile,
+    mode: readMode(),
+    now: input.context?.now ?? new Date(),
+  });
 
-  // 3. Evaluate
-  const evaluation = evaluateRisk(input.action, input.portfolio, profile, input.context ?? {});
-
-  // 4. Kill switch — do not write
-  if (mode === 'observer') {
-    return {
-      outcome: 'observer_mode',
-      reason: 'WEALTH_MODE=observer is set; no writes performed.',
-      evaluation,
-    };
+  if (decision.kind === 'observer_mode') {
+    return { outcome: 'observer_mode', reason: decision.reason, evaluation: decision.evaluation };
   }
-
-  // 5. Block path
-  if (evaluation.blocked) {
-    return {
-      outcome: 'blocked',
-      reason: evaluation.breachedRules
-        .filter((b) => b.severity === 'block')
-        .map((b) => `${b.rule}: ${b.message}`)
-        .join('  |  '),
-      evaluation,
-    };
+  if (decision.kind === 'block') {
+    return { outcome: 'blocked', reason: decision.reason, evaluation: decision.evaluation };
   }
-
-  // 6. Insert path
-  const reasonText = [input.caller.extraReason, ...evaluation.reasons]
-    .filter(Boolean)
-    .join('\n');
-
-  const expiresAt = new Date(
-    Date.now() + (input.caller.expiresInMinutes ?? DEFAULT_EXPIRY_MIN) * 60_000,
-  );
-
-  const alternatives = evaluation.suggestedSaferAlternative
-    ? [
-        {
-          kind: evaluation.suggestedSaferAlternative.kind,
-          description: evaluation.suggestedSaferAlternative.description,
-        },
-        ...(evaluation.suggestedAdjustment
-          ? [
-              {
-                kind: 'reduce_amount' as const,
-                description: evaluation.suggestedAdjustment.reason,
-                newAmountGbp: evaluation.suggestedAdjustment.newAmountGbp,
-              },
-            ]
-          : []),
-      ]
-    : evaluation.suggestedAdjustment
-    ? [
-        {
-          kind: 'reduce_amount' as const,
-          description: evaluation.suggestedAdjustment.reason,
-          newAmountGbp: evaluation.suggestedAdjustment.newAmountGbp,
-        },
-      ]
-    : [];
 
   const [row] = await db
     .insert(proposedActions)
-    .values({
-      userId: input.userId,
-      agent: input.agent,
-      kind: input.dbKind,
-      payload: {
-        action: input.action,
-        portfolio: input.portfolio,
-        evaluation: {
-          allowed: evaluation.allowed,
-          requiresApproval: evaluation.requiresApproval,
-          warnings: evaluation.warnings,
-          breachedRules: evaluation.breachedRules,
-        },
-      },
-      reason: reasonText,
-      upside: input.caller.upside ?? null,
-      downside: input.caller.downside ?? null,
-      riskScore: evaluation.riskScore,
-      confidence: input.caller.confidence.toString(),
-      amountAtRisk: input.action.amountGbp.toString(),
-      alternatives: alternatives.length > 0 ? alternatives : null,
-      expiresAt,
-      status: 'pending',
-    })
+    .values(decision.values)
     .returning({ id: proposedActions.id });
 
   return {
     outcome: 'inserted',
     proposedActionId: row!.id,
-    evaluation,
+    evaluation: decision.evaluation,
   };
 }

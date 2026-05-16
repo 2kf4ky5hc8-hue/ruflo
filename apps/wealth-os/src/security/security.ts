@@ -1,5 +1,6 @@
-// Reuses @claude-flow/security primitives so wealth-os does not roll its own
-// crypto, path-traversal, or input-validation logic.
+// PII redaction + a banned-phrase guardrail used before any LLM call.
+// Self-contained — no external integration. If we ever adopt a shared
+// security package we replace these implementations behind the same API.
 
 import { z } from 'zod';
 
@@ -79,12 +80,3 @@ export const ProposedActionInput = z.object({
 });
 
 export type ProposedActionInput = z.infer<typeof ProposedActionInput>;
-
-// Optional: delegate envelope encryption to @claude-flow/security when present.
-export async function getSecurityModule() {
-  try {
-    return await import('@claude-flow/security');
-  } catch {
-    return null;
-  }
-}
