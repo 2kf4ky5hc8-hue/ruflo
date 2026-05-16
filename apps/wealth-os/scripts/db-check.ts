@@ -21,7 +21,7 @@ async function check(name: string, fn: () => Promise<string>): Promise<void> {
 }
 
 const EXPECTED_TABLES = [
-  'users', 'sessions', 'audit_events',
+  'users', 'sessions', 'audit_events', 'recovery_codes',
   'institutions', 'connections', 'accounts',
   'categories', 'category_rules', 'transactions',
   'instruments', 'holdings', 'lots', 'corporate_actions', 'prices', 'fundamentals',
@@ -29,6 +29,11 @@ const EXPECTED_TABLES = [
   'businesses', 'business_metrics',
   'risk_profiles', 'risk_breaches', 'allocation_rules', 'spare_cash_events',
   'opportunities', 'research_notes', 'proposed_actions', 'goals', 'reports', 'agent_runs',
+];
+
+const EXPECTED_USER_COLUMNS = [
+  'password_hash', 'totp_secret_encrypted', 'totp_enrolled_at',
+  'monthly_income_gbp', 'monthly_expenses_gbp', 'onboarded_at',
 ];
 
 async function main() {
@@ -47,6 +52,17 @@ async function main() {
     const missing = EXPECTED_TABLES.filter((t) => !have.has(t));
     if (missing.length) throw new Error(`missing tables: ${missing.join(', ')}`);
     return `${have.size} public tables (all ${EXPECTED_TABLES.length} expected present)`;
+  });
+
+  await check('auth + onboarding columns on users', async () => {
+    const rows = await sql<{ column_name: string }[]>`
+      SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users'
+    `;
+    const have = new Set(rows.map((r) => r.column_name));
+    const missing = EXPECTED_USER_COLUMNS.filter((c) => !have.has(c));
+    if (missing.length) throw new Error(`missing columns on users: ${missing.join(', ')}`);
+    return `users has ${EXPECTED_USER_COLUMNS.length}/${EXPECTED_USER_COLUMNS.length} auth+onboarding columns`;
   });
 
   await check('seed user exists', async () => {

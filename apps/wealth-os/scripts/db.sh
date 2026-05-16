@@ -25,7 +25,8 @@ export PGPASSWORD="${PGPASSWORD:-wealth_os}"
 export PGDATABASE="${PGDATABASE:-wealth_os}"
 export DATABASE_URL="${DATABASE_URL:-postgres://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}}"
 
-MIGRATION_FILE="$HERE/src/db/migrations/0001_initial.sql"
+MIGRATION_DIR="$HERE/src/db/migrations"
+MIGRATION_FILES=( $(ls "$MIGRATION_DIR"/*.sql 2>/dev/null | sort) )
 
 log() { printf '\033[36m[db]\033[0m %s\n' "$*"; }
 err() { printf '\033[31m[db]\033[0m %s\n' "$*" >&2; }
@@ -112,9 +113,14 @@ cmd_reset()   { if docker_available; then docker_reset; else sys_reset; fi; cmd_
 
 cmd_migrate() {
   wait_for_pg
-  log "applying migration: $(basename "$MIGRATION_FILE")"
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -X -f "$MIGRATION_FILE"
-  log "migration complete"
+  if [[ ${#MIGRATION_FILES[@]} -eq 0 ]]; then
+    err "no migrations in $MIGRATION_DIR"; return 1
+  fi
+  for f in "${MIGRATION_FILES[@]}"; do
+    log "applying migration: $(basename "$f")"
+    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -X -f "$f"
+  done
+  log "all migrations applied"
 }
 
 cmd_status() {

@@ -38,11 +38,11 @@ Definition of done for every story:
 
 | ID    | Story                                                                                 | Pts | Status | Notes |
 |-------|---------------------------------------------------------------------------------------|-----|--------|-------|
-| F-001 | Apply `0001_initial.sql` migration to Postgres dev DB.                                | 1   | ✅ | Done via `pnpm db:migrate` (29 tables created). |
-| F-002 | Wire Drizzle ORM; verify `select 1` from each schema module.                          | 2   | ✅ | `pnpm db:check` verifies connection + every expected table. |
+| F-001 | Apply `0001_initial.sql` migration to Postgres dev DB.                                | 1   | ✅ | Done via `pnpm db:migrate` (30 tables created after 0002). |
+| F-002 | Wire Drizzle ORM; verify `select 1` from each schema module.                          | 2   | ✅ | `pnpm db:check` verifies connection + every expected table + auth columns. |
 | F-003 | Run `pnpm db:seed` to load tax rules, risk profiles, default categories.              | 1   | ✅ | Aggressive profile + allocation rule are active; 10 institutions seeded. |
-| F-004 | Set up Next.js 15 app skeleton (App Router, Tailwind, shadcn/ui).                     | 3   | ⏳ | Single-user mode for MVP. |
-| F-005 | Auth.js with email + TOTP 2FA; session table integration; revoke flow.                | 5   | ⏳ | No password reset by email in MVP — recovery codes only. |
+| F-004 | Set up Next.js 15 app skeleton (App Router, Tailwind).                                | 3   | ✅ | App Router, Tailwind, custom utility classes (`.card`, `.btn`, etc.). |
+| F-005 | Auth.js with email + password + TOTP 2FA; recovery codes; first-run setup.            | 5   | ✅ | Edge/Node split; JWT session strategy; bcrypt; AES-256-GCM TOTP enc; audit log on sign-in. Session-table revoke is K-705 follow-up. |
 | F-006 | Audit-log middleware: every mutation writes a row to `audit_events`.                  | 3   | ⏳ | Use a Drizzle hook + request-context store. |
 | F-007 | KMS-backed envelope encryption for `connections.refresh_token_encrypted` etc.         | 3   | ⏳ | Local: libsodium secretbox; prod: AWS KMS or Fly secrets. |
 | F-008 | CI: typecheck, lint, vitest, `pnpm db:push --dry-run`, secret scan.                   | 2   | ⏳ | GitHub Actions; required checks on main. |
@@ -152,11 +152,11 @@ Definition of done for every story:
 | ID    | Story                                                                                  | Pts | Status | Notes |
 |-------|----------------------------------------------------------------------------------------|-----|--------|-------|
 | K-701 | Pure-function rule evaluator: takes `(profile, holdings, action)` → pass/fail+reasons. | 5   | ✅ | `src/risk/evaluator.ts` + 24 tests. Sleep-mode + new-instrument cap baked in. |
-| K-702 | Block `proposed_action` insert if rule-eval fails; surface reason in UI.               | 2   | ⏳ | Needs DB-layer wiring (Drizzle hook on insert). |
-| K-703 | Daily breach scan: writes `risk_breaches` for current portfolio violations.            | 3   | ⏳ | Reuses `evaluateRisk` over current portfolio snapshot. |
-| K-704 | Concentration warning at 1.5× cap.                                                     | 2   | ⏳ | Already produces "approaching cap" warnings at 0.9× — extend to 1.5×. |
-| K-705 | Cooling-off enforcement: block approval if last decision < `cooling_off_minutes` ago.  | 2   | ⏳ | Approval Centre middleware. |
-| K-706 | Sleep-mode enforcement: block live-mode actions outside window.                        | 2   | ✅ | Pure-function check inside evaluator; live execution gating arrives with K-702. |
+| K-702 | Block `proposed_action` insert if rule-eval fails; surface reason in UI.               | 2   | ✅ | `src/services/submit-proposed-action.ts` + 5 integration tests. Honours `WEALTH_MODE=observer`. |
+| K-703 | Daily breach scan: writes `risk_breaches` for current portfolio violations.            | 3   | ⏸ | Deferred — re-evaluate after user enters a portfolio and runs the system. |
+| K-704 | Concentration warning at 1.5× cap.                                                     | 2   | ⏸ | Deferred — same reason as K-703. |
+| K-705 | Cooling-off enforcement + session-table revoke flow.                                   | 2   | ⏸ | Deferred — Approval Centre middleware comes alongside first real use. |
+| K-706 | Sleep-mode enforcement: block live-mode actions outside window.                        | 2   | ✅ | Pure-function check inside evaluator. |
 
 **Epic total: 16 pts**
 
@@ -226,8 +226,8 @@ sense for *this* user *this* week.
 
 | ID    | Story                                                                                  | Pts | Notes |
 |-------|----------------------------------------------------------------------------------------|-----|-------|
-| WC-1201 | Onboarding flow: 4-step wizard (profile, accounts, goals, risk tolerance check).     | 5   | Writes `users`, `goals`, sets active `risk_profile`, confirms allocation preset. |
-| WC-1202 | Personalised playbook generator: 6-month written plan derived from goals + profile.  | 5   | Markdown stored as a `reports` row of kind `playbook`. |
+| WC-1201 | Onboarding flow: 4-step wizard (profile, accounts, goals, risk tolerance check).     | 5 ✅ | `src/app/onboarding/*` — profile + risk, position (cash/ISA/GIA/pension/biz/debt), monthly cashflow, up-to-6 goals. Saves to canonical tables; idempotent. |
+| WC-1202 | Personalised playbook generator: 6-month written plan derived from goals + profile.  | 5 ✅ | `src/services/playbook.ts` — pure-function markdown, ISA projections at 3/5/7/10%, stored as `reports.kind='playbook'`, re-runnable from `/playbook`. |
 | WC-1203 | "Next 3 actions" widget: top-N pending `proposed_action` rows ranked by fit + urgency.| 3   | Re-uses risk evaluator score + age + ISA-deadline urgency multiplier. |
 | WC-1204 | Monthly review prompt: cron on the 1st of each month, opens an in-app card.          | 3   | Calls Coach agent to synthesise the month. |
 | WC-1205 | "Talk to the Coach" inline thread: anchored to a dashboard card or an opportunity.   | 5   | Conversation persists in `agent_runs`; PII-redacted before LLM call. |
@@ -270,12 +270,17 @@ Cut lines if time runs short, in order:
 4. R-603 (research generator) — keep R-601/R-602/R-605 (data view only).
 5. WC-1205 / WC-1208 — Coach without conversational thread or memory pinning is still useful.
 
-## Done so far (this session)
+## Done so far
 
 | ID    | Story | Verified by |
 |-------|-------|-------------|
-| F-001 | Migration applies cleanly (29 tables). | `pnpm db:migrate` + `pnpm db:check` |
-| F-002 | Drizzle ORM connects, all expected tables present, audit_events writable. | `pnpm db:check` (10/10 green) |
+| F-001 | Migration applies cleanly (30 tables incl. recovery_codes). | `pnpm db:migrate` + `pnpm db:check` |
+| F-002 | Drizzle ORM connects, all expected tables present, audit_events writable. | `pnpm db:check` (11/11 green) |
 | F-003 | Seed loads aggressive profile, allocation, ISA year, categories, institutions. | `pnpm db:seed` + `pnpm db:check` |
-| K-701 | Deterministic risk evaluator with 24 tests covering position cap, speculative cap, crypto cap, cash floor, ISA allowance, sleep mode, derivatives gating, invalid input, empty-portfolio edge case, and determinism. | `pnpm test` (38/38 green) |
+| F-004 | Next.js 15 App Router + Tailwind shell with chrome (nav, sign-out, footer). | `pnpm build` (13 routes) |
+| F-005 | Auth.js + Credentials (email/password) + TOTP 2FA + recovery codes + first-run setup. | curl-driven sign-in: 302 → session JSON → middleware-protected routes |
+| K-701 | Deterministic risk evaluator (24 tests). | `pnpm test` |
+| K-702 | `submitProposedAction` wires evaluator into insert path; blocks never written; observer mode honoured (5 tests). | `pnpm test` |
 | K-706 | Sleep-mode rule baked into evaluator (UK timezone, DST-aware, midnight wrap). | Test: "warns on a buy issued during the UK sleep window". |
+| WC-1201 | Four-step onboarding wizard saving to canonical tables. | `/onboarding` → `/onboarding/position` → `/onboarding/cashflow` → `/onboarding/goals` |
+| WC-1202 | Deterministic playbook generator (markdown + ISA projection table). | `/playbook` renders the most recent `reports.kind='playbook'`. |

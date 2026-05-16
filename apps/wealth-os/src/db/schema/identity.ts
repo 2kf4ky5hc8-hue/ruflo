@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  pgTable, uuid, varchar, text, timestamp, jsonb, inet, index,
+  pgTable, uuid, varchar, text, timestamp, jsonb, inet, index, numeric,
 } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
@@ -10,10 +10,26 @@ export const users = pgTable('users', {
   baseCurrency: varchar('base_currency', { length: 3 }).notNull().default('GBP'),
   taxResidency: varchar('tax_residency', { length: 2 }).notNull().default('GB'),
   riskProfile: varchar('risk_profile', { length: 20 }).notNull().default('balanced'),
+  passwordHash: text('password_hash'),
+  totpSecretEncrypted: text('totp_secret_encrypted'),
+  totpEnrolledAt: timestamp('totp_enrolled_at', { withTimezone: true }),
+  monthlyIncomeGbp: numeric('monthly_income_gbp', { precision: 20, scale: 4 }),
+  monthlyExpensesGbp: numeric('monthly_expenses_gbp', { precision: 20, scale: 4 }),
+  onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
+
+export const recoveryCodes = pgTable('recovery_codes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  codeHash: varchar('code_hash', { length: 128 }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index('recovery_codes_user_idx').on(t.userId, t.usedAt),
+}));
 
 export const sessions = pgTable('sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
