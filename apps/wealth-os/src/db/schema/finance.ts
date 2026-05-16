@@ -33,6 +33,7 @@ export const accounts = pgTable('accounts', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: userIdRef(),
   connectionId: uuid('connection_id').references(() => connections.id, { onDelete: 'set null' }),
+  institutionId: uuid('institution_id').references(() => institutions.id, { onDelete: 'set null' }),
   type: varchar('type', { length: 30 }).notNull(),
   subtype: varchar('subtype', { length: 40 }),
   name: varchar('name', { length: 200 }).notNull(),
@@ -42,6 +43,10 @@ export const accounts = pgTable('accounts', {
   accountNumberMasked: varchar('account_number_masked', { length: 20 }),
   isIsa: boolean('is_isa').notNull().default(false),
   isaType: varchar('isa_type', { length: 30 }),
+  isBusiness: boolean('is_business').notNull().default(false),
+  currentBalance: money('current_balance').notNull().default('0'),
+  notes: text('notes'),
+  source: varchar('source', { length: 40 }).notNull().default('manual'),
   openedAt: timestamp('opened_at', { withTimezone: true }),
   closedAt: timestamp('closed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -86,6 +91,10 @@ export const transactions = pgTable('transactions', {
   source: varchar('source', { length: 40 }).notNull().default('manual'),
   sourceRef: varchar('source_ref', { length: 200 }),
   confidenceScore: numeric('confidence_score', { precision: 5, scale: 4 }),
+  direction: varchar('direction', { length: 20 }),
+  notes: text('notes'),
+  holdingId: uuid('holding_id'),
+  recurring: boolean('recurring').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   accountTimeIdx: index('tx_account_time_idx').on(t.accountId, t.postedAt),
@@ -110,12 +119,20 @@ export const instruments = pgTable('instruments', {
 export const holdings = pgTable('holdings', {
   id: uuid('id').primaryKey().defaultRandom(),
   accountId: uuid('account_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
-  instrumentId: uuid('instrument_id').notNull().references(() => instruments.id),
+  instrumentId: uuid('instrument_id').references(() => instruments.id),
   quantity: numeric('quantity', { precision: 28, scale: 8 }).notNull(),
   avgCost: money('avg_cost'),
   currency: varchar('currency', { length: 3 }).notNull(),
   asOf: timestamp('as_of', { withTimezone: true }).notNull(),
   source: varchar('source', { length: 40 }).notNull().default('manual'),
+  // Denormalized manual-entry fields. Future broker integrations can leave
+  // these null and rely on the linked instruments row instead.
+  assetName: varchar('asset_name', { length: 200 }),
+  tickerLocal: varchar('ticker_local', { length: 40 }),
+  assetType: varchar('asset_type', { length: 40 }),
+  currentPrice: money('current_price'),
+  riskCategory: varchar('risk_category', { length: 40 }),
+  notes: text('notes'),
 }, (t) => ({
   accountInstrUnique: uniqueIndex('holdings_account_instr_uq').on(t.accountId, t.instrumentId),
 }));
@@ -185,6 +202,7 @@ export const isaDeposits = pgTable('isa_deposits', {
   amount: money('amount').notNull(),
   taxYear: integer('tax_year').notNull(),
   sourceTransactionId: uuid('source_transaction_id').references(() => transactions.id, { onDelete: 'set null' }),
+  notes: text('notes'),
 }, (t) => ({
   userYearIdx: index('isa_deposits_user_year_idx').on(t.userId, t.taxYear),
 }));

@@ -143,6 +143,15 @@ export function RunCoachButton() {
             </section>
           )}
 
+          {r.dataPresent.length > 0 && (
+            <section>
+              <h3 className="h3">Data the Coach used</h3>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
+                {r.dataPresent.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            </section>
+          )}
+
           {r.missingData.length > 0 && (
             <section>
               <h3 className="h3">Missing data</h3>

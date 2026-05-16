@@ -1,9 +1,26 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { and, eq, gte, sum } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
 import { AppShell } from '@/components/AppShell';
 import { RunCoachButton } from '@/components/RunCoachButton';
 import { loadSnapshot, gbp } from '@/lib/finance';
+import { agentRuns } from '@/db/schema/index';
+import { env } from '@/lib/env';
+import { utcMonthStart } from '@/services/coach-budget';
+
+async function fetchMonthlyCoachSpend(userId: string, now: Date): Promise<number> {
+  const [row] = await db
+    .select({ total: sum(agentRuns.costUsd) })
+    .from(agentRuns)
+    .where(and(
+      eq(agentRuns.userId, userId),
+      eq(agentRuns.agent, 'wealth-coach'),
+      gte(agentRuns.startedAt, utcMonthStart(now)),
+    ));
+  return Number(row?.total ?? 0);
+}
 
 export default async function Dashboard() {
   const session = await auth();
@@ -13,13 +30,16 @@ export default async function Dashboard() {
   const snap = await loadSnapshot(userId);
   if (!snap.user.onboardedAt) redirect('/onboarding');
 
+  const coachSpentUsd = await fetchMonthlyCoachSpend(userId, new Date());
+  const coachCapUsd = env.COACH_MONTHLY_BUDGET_USD;
+
   const monthsBuffer = snap.monthlyExpensesGbp > 0
     ? (snap.cashGbp / snap.monthlyExpensesGbp).toFixed(1)
     : '—';
   const isaPct = snap.isa
     ? Math.round((snap.isa.deposited / snap.isa.allowance) * 100)
     : 0;
-
+  const investmentGbp = snap.isaValueGbp + snap.giaValueGbp;
   const hello = snap.user.name?.split(' ')[0] ?? 'there';
 
   return (
@@ -29,28 +49,80 @@ export default async function Dashboard() {
         Net worth, ISA progress, and the moves your Coach is considering this week.
       </p>
 
+      {!snap.hasAnyAccounts && (
+        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <strong>You haven't added any accounts yet.</strong>{' '}
+          The dashboard will stay empty until you do.{' '}
+          <Link className="underline" href="/accounts">Add your first account →</Link>
+        </div>
+      )}
+
       <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="card">
           <div className="h3">Net worth</div>
           <div className="mt-2 text-3xl font-semibold">{gbp(snap.netWorthGbp)}</div>
-          <div className="mt-1 subtle">Total across cash, ISA, GIA, business — debts deducted.</div>
+          <div className="mt-1 subtle">Cash + business + ISA + GIA + crypto + pension − debt.</div>
         </div>
         <div className="card">
-          <div className="h3">Cash position</div>
+          <div className="h3">Cash (personal)</div>
           <div className="mt-2 text-3xl font-semibold">{gbp(snap.cashGbp)}</div>
           <div className="mt-1 subtle">
             {snap.monthlyExpensesGbp > 0
               ? `${monthsBuffer} months of expenses (floor ${snap.activeRiskProfile?.cashFloorMonths ?? '—'} mo).`
-              : 'Set monthly expenses to see your buffer.'}
+              : 'Add a transaction or set monthly expenses to see your buffer.'}
           </div>
         </div>
         <div className="card">
           <div className="h3">ISA allowance</div>
-          <div className="mt-2 text-3xl font-semibold">{gbp(snap.isa?.deposited ?? 0)}<span className="text-base text-muted"> / {gbp(snap.isa?.allowance ?? 20000)}</span></div>
-          <div className="mt-2 h-2 w-full rounded-full bg-line/60">
-            <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.min(100, isaPct)}%` }} />
+          {snap.isa ? (
+            <>
+              <div className="mt-2 text-3xl font-semibold">
+                {gbp(snap.isa.deposited)}
+                <span className="text-base text-muted"> / {gbp(snap.isa.allowance)}</span>
+              </div>
+              <div className="mt-2 h-2 w-full rounded-full bg-line/60">
+                <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.min(100, isaPct)}%` }} />
+              </div>
+              <div className="mt-2 subtle">{gbp(snap.isa.remaining)} remaining this tax year.</div>
+              {snap.isa.deposited > snap.isa.allowance && (
+                <p className="mt-2 text-xs text-red-700">
+                  Over allowance — check ISA contributions for duplicates.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="mt-2 text-3xl font-semibold">—</div>
+              <Link className="mt-2 inline-block text-accent underline" href="/isa">
+                Log your first ISA deposit →
+              </Link>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="card">
+          <div className="h3">Business cash</div>
+          <div className="mt-2 text-xl font-semibold">{gbp(snap.businessGbp)}</div>
+          <div className="mt-1 subtle">Held separately from personal cash.</div>
+        </div>
+        <div className="card">
+          <div className="h3">Investments</div>
+          <div className="mt-2 text-xl font-semibold">{gbp(investmentGbp)}</div>
+          <div className="mt-1 subtle">ISA + GIA combined.</div>
+        </div>
+        <div className="card">
+          <div className="h3">Crypto + pension</div>
+          <div className="mt-2 text-xl font-semibold">{gbp(snap.cryptoGbp + snap.pensionGbp)}</div>
+          <div className="mt-1 subtle">
+            {gbp(snap.cryptoGbp)} crypto · {gbp(snap.pensionGbp)} pension.
           </div>
-          <div className="mt-2 subtle">{gbp(snap.isa?.remaining ?? 0)} remaining this tax year.</div>
+        </div>
+        <div className="card">
+          <div className="h3">Debt</div>
+          <div className="mt-2 text-xl font-semibold">{gbp(snap.debtGbp)}</div>
+          <div className="mt-1 subtle">Mortgages, loans, credit. Subtracted from net worth.</div>
         </div>
       </section>
 
@@ -69,6 +141,10 @@ export default async function Dashboard() {
               </Link>
             </p>
           )}
+          <p className="mt-3 text-xs text-muted">
+            Coach LLM spend this month: <strong>${coachSpentUsd.toFixed(2)}</strong> of ${coachCapUsd.toFixed(2)} cap.
+            {coachSpentUsd >= coachCapUsd && ' Cap reached — narration paused until next month.'}
+          </p>
           <div className="mt-4">
             <RunCoachButton />
           </div>
@@ -123,6 +199,9 @@ export default async function Dashboard() {
           </div>
           <div className="mt-1 subtle">
             Spare: {gbp(snap.monthlyIncomeGbp - snap.monthlyExpensesGbp)} / month.
+            {' '}<em className="text-xs">
+              ({snap.monthlyIncomeSource === 'derived' ? 'from transactions' : snap.monthlyIncomeSource === 'user_set' ? 'from onboarding' : 'not set'})
+            </em>
           </div>
         </div>
       </section>

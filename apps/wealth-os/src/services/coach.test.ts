@@ -65,13 +65,18 @@ function snapshot(overrides: Partial<FinanceSnapshot> = {}): FinanceSnapshot {
     giaValueGbp: 0,
     businessGbp: 0,
     debtGbp: 0,
+    cryptoGbp: 0,
+    pensionGbp: 0,
     monthlyIncomeGbp: 4_500,
     monthlyExpensesGbp: 2_500,
+    monthlyIncomeSource: 'user_set',
+    monthlyExpensesSource: 'user_set',
     isa: { taxYear: 2026, allowance: 20_000, deposited: 8_000, remaining: 12_000 },
     activeRiskProfile: { name: 'aggressive', cashFloorMonths: 2 },
     activeAllocation: { preset: 'aggressive', weights: { isa: 0.4, higher_risk: 0.2 } },
     goals: [{ id: 'g1', name: 'House deposit', target: 40_000, current: 5_000, targetDate: null }],
     pendingApprovals: 0,
+    hasAnyAccounts: true,
     ...overrides,
   };
 }
@@ -173,9 +178,11 @@ describe('buildCoachReport — missing data & confidence', () => {
       user: { id: 'u', email: '', name: '', onboardedAt: null },
       accountsByType: {},
       netWorthGbp: 0, cashGbp: 0, isaValueGbp: 0, giaValueGbp: 0, businessGbp: 0, debtGbp: 0,
+      cryptoGbp: 0, pensionGbp: 0,
       monthlyIncomeGbp: 0, monthlyExpensesGbp: 0,
+      monthlyIncomeSource: 'none', monthlyExpensesSource: 'none',
       isa: null, activeRiskProfile: null, activeAllocation: null,
-      goals: [], pendingApprovals: 0,
+      goals: [], pendingApprovals: 0, hasAnyAccounts: false,
     };
     const r = buildCoachReport({ snap: sparse, rules, now: NOW });
     expect(r.missingData.length).toBeGreaterThanOrEqual(4);
@@ -193,6 +200,33 @@ describe('buildCoachReport — guardrails ("do not")', () => {
     const r = buildCoachReport({ snap: snapshot(), rules, now: NOW });
     expect(r.doNot.length).toBeGreaterThan(0);
     expect(r.doNot.join(' ')).toMatch(/leverage/i);
+  });
+});
+
+describe('buildCoachReport — manual-data awareness', () => {
+  it('flags "No accounts added yet" when hasAnyAccounts is false', () => {
+    const r = buildCoachReport({ snap: snapshot({ hasAnyAccounts: false }), rules, now: NOW });
+    expect(r.missingData).toContain('No accounts added yet.');
+  });
+
+  it('populates dataPresent with the inputs the Coach actually has', () => {
+    const r = buildCoachReport({ snap: snapshot(), rules, now: NOW });
+    expect(r.dataPresent.some((s) => /risk profile: aggressive/i.test(s))).toBe(true);
+    expect(r.dataPresent.some((s) => /allocation: aggressive/i.test(s))).toBe(true);
+    expect(r.dataPresent.some((s) => /goal/i.test(s))).toBe(true);
+    expect(r.dataPresent.some((s) => /ISA tracker/i.test(s))).toBe(true);
+  });
+
+  it('returns a block-severity risk when ISA contributions exceed the allowance', () => {
+    const r = buildCoachReport({
+      snap: snapshot({ isa: { taxYear: 2026, allowance: 20_000, deposited: 22_500, remaining: 0 } }),
+      rules,
+      now: NOW,
+    });
+    const risk = r.risks.find((x) => x.rule === 'isa_over_allowance');
+    expect(risk).toBeDefined();
+    expect(risk!.severity).toBe('block');
+    expect(risk!.message).toMatch(/£22500/);
   });
 });
 
@@ -279,13 +313,18 @@ vi.mock('../lib/finance', async () => {
       giaValueGbp: 0,
       businessGbp: 0,
       debtGbp: 0,
+      cryptoGbp: 0,
+      pensionGbp: 0,
       monthlyIncomeGbp: 4_500,
       monthlyExpensesGbp: 2_500,
+      monthlyIncomeSource: 'user_set' as const,
+      monthlyExpensesSource: 'user_set' as const,
       isa: { taxYear: 2026, allowance: 20_000, deposited: 8_000, remaining: 12_000 },
       activeRiskProfile: { name: 'aggressive', cashFloorMonths: 2 },
       activeAllocation: { preset: 'aggressive', weights: { isa: 0.4 } },
       goals: [],
       pendingApprovals: 0,
+      hasAnyAccounts: true,
     })),
   };
 });

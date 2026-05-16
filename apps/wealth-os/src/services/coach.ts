@@ -80,6 +80,8 @@ export interface CoachReport {
   opportunities: Array<{ title: string; rationale: string }>;
   suggestedActions: CoachSuggestedAction[];
   doNot: string[];
+  /** Short human-readable list of what real data exists (counterpart to missingData). */
+  dataPresent: string[];
   missingData: string[];
   /** 0..1 — falls as missingData grows. */
   confidence: number;
@@ -124,12 +126,23 @@ export function buildCoachReport(args: {
 
   // ── Missing-data detection — drives confidence
   const missingData: string[] = [];
+  if (!snap.hasAnyAccounts)   missingData.push('No accounts added yet.');
   if (!snap.activeRiskProfile) missingData.push('No active risk profile.');
   if (!snap.activeAllocation) missingData.push('No active allocation rule.');
   if (monthlyIncome === 0) missingData.push('Monthly income not set.');
   if (monthlyExpenses === 0) missingData.push('Monthly expenses not set.');
   if (snap.goals.length === 0) missingData.push('No goals recorded.');
   if (!snap.isa) missingData.push('No ISA year tracked for this tax year.');
+
+  // ── Data-present summary — counterpart to missingData
+  const dataPresent: string[] = [];
+  if (snap.hasAnyAccounts)             dataPresent.push(`${Object.keys(snap.accountsByType).length} account type${Object.keys(snap.accountsByType).length === 1 ? '' : 's'} on file`);
+  if (snap.activeRiskProfile)          dataPresent.push(`risk profile: ${snap.activeRiskProfile.name}`);
+  if (snap.activeAllocation)           dataPresent.push(`allocation: ${snap.activeAllocation.preset}`);
+  if (monthlyIncome > 0)               dataPresent.push(`monthly income ${snap.monthlyIncomeSource === 'derived' ? '(this month)' : '(user-set)'}`);
+  if (monthlyExpenses > 0)             dataPresent.push(`monthly expenses ${snap.monthlyExpensesSource === 'derived' ? '(this month)' : '(user-set)'}`);
+  if (snap.goals.length > 0)           dataPresent.push(`${snap.goals.length} goal${snap.goals.length === 1 ? '' : 's'}`);
+  if (snap.isa)                        dataPresent.push(`ISA tracker: ${snap.isa.deposited > 0 ? '£' + snap.isa.deposited.toFixed(0) + ' deposited' : 'no deposits yet'}`);
 
   // ── Risks (deterministic only, never LLM-driven)
   const risks: CoachRiskNote[] = [];
@@ -171,6 +184,14 @@ export function buildCoachReport(args: {
       rule: 'isa_year_end',
       severity: 'warn',
       message: `£${isa.remainingGbp.toFixed(0)} of ISA allowance unused with ${daysToYearEnd} day${daysToYearEnd === 1 ? '' : 's'} left — it doesn't roll over.`,
+    });
+  }
+
+  if (snap.isa && snap.isa.deposited > snap.isa.allowance) {
+    risks.push({
+      rule: 'isa_over_allowance',
+      severity: 'block',
+      message: `Recorded ISA contributions £${snap.isa.deposited.toFixed(0)} exceed the £${snap.isa.allowance.toFixed(0)} allowance — check for duplicates and verify each deposit's tax year.`,
     });
   }
 
@@ -265,6 +286,7 @@ export function buildCoachReport(args: {
     opportunities: [], // wealth-os doesn't have an opportunity feed yet; honest empty
     suggestedActions: top,
     doNot,
+    dataPresent,
     missingData,
     confidence,
     disclaimer: DISCLAIMER,

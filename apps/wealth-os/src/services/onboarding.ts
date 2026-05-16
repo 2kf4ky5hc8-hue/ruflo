@@ -6,7 +6,7 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../lib/db';
 import {
-  users, accounts, transactions, goals, isaYears, riskProfiles, allocationRules,
+  users, accounts, goals, isaYears, riskProfiles, allocationRules,
 } from '../db/schema/index';
 
 export type RiskChoice = 'conservative' | 'balanced' | 'aggressive';
@@ -40,33 +40,22 @@ async function ensureAccount(
   name: string,
   type: string,
   isIsa = false,
+  isBusiness = false,
 ): Promise<string> {
   const existing = await db.select().from(accounts)
     .where(and(eq(accounts.userId, userId), eq(accounts.name, name), eq(accounts.type, type)))
     .limit(1);
   if (existing[0]) return existing[0].id;
   const [row] = await db.insert(accounts).values({
-    userId, name, type, currency: 'GBP', isIsa,
+    userId, name, type, currency: 'GBP', isIsa, isBusiness, source: 'onboarding',
   }).returning({ id: accounts.id });
   return row!.id;
 }
 
 async function setAccountBalance(accountId: string, amountGbp: number) {
-  // Replace all `onboarding` transactions for this account with one row that
-  // sets the balance. Keeps onboarding idempotent.
-  await db.delete(transactions).where(
-    and(eq(transactions.accountId, accountId), eq(transactions.source, 'onboarding')),
-  );
-  if (amountGbp === 0) return;
-  await db.insert(transactions).values({
-    accountId,
-    postedAt: new Date(),
-    amount: amountGbp.toString(),
-    currency: 'GBP',
-    descriptionRaw: 'Opening balance (onboarding)',
-    descriptionClean: 'Opening balance',
-    source: 'onboarding',
-  });
+  await db.update(accounts)
+    .set({ currentBalance: amountGbp.toString() })
+    .where(eq(accounts.id, accountId));
 }
 
 export async function saveStep1(userId: string, s: Step1Profile) {
@@ -90,8 +79,8 @@ export async function saveStep2(userId: string, s: Step2Position) {
   const cashId      = await ensureAccount(userId, 'Cash',                       'cash');
   const isaId       = await ensureAccount(userId, 'Stocks & Shares ISA',        'isa', true);
   const giaId       = await ensureAccount(userId, 'General Investment Account', 'gia');
-  const pensionId   = await ensureAccount(userId, 'Pension',                    'sipp');
-  const businessId  = await ensureAccount(userId, 'Business cash',              'business');
+  const pensionId   = await ensureAccount(userId, 'Pension',                    'pension');
+  const businessId  = await ensureAccount(userId, 'Business cash',              'business', false, true);
   const debtId      = await ensureAccount(userId, 'Total debt',                 'debt');
 
   await setAccountBalance(cashId,     s.cashGbp);
