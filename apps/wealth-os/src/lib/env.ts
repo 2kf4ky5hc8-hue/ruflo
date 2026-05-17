@@ -48,9 +48,17 @@ export const env = {
   COACH_MODEL: process.env.COACH_MODEL ?? 'claude-sonnet-4-6',
   COACH_MAX_TOKENS: Number(process.env.COACH_MAX_TOKENS ?? 2000),
 
-  // Personal monthly spend cap on Coach LLM narration. Deterministic report
-  // is free and always runs. Default $2/month — cheap enough to forget.
-  COACH_MONTHLY_BUDGET_USD: Number(process.env.COACH_MONTHLY_BUDGET_USD ?? 2),
+  // Personal Coach limits. Both are hard caps — when either fires the API
+  // returns 429 and no agent_runs / reports row is written.
+  //   COACH_DAILY_CAP        — max wealth-coach runs per UTC day (default 5)
+  //   COACH_MONTHLY_USD_CAP  — max LLM spend per UTC calendar month (default $2.50)
+  //
+  // COACH_MONTHLY_BUDGET_USD is the old name; kept as a fallback so existing
+  // .env files keep working.
+  COACH_DAILY_CAP: Number(process.env.COACH_DAILY_CAP ?? 5),
+  COACH_MONTHLY_USD_CAP: Number(
+    process.env.COACH_MONTHLY_USD_CAP ?? process.env.COACH_MONTHLY_BUDGET_USD ?? 2.5,
+  ),
 };
 
 export const coachEnabled = (): boolean => env.ANTHROPIC_API_KEY !== null && env.ANTHROPIC_API_KEY.length > 0;

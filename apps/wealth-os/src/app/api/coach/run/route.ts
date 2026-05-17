@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { createAnthropicNarrator, runCoach } from '@/services/coach';
+import { CoachLimitError } from '@/services/coach-budget';
 import { env, coachEnabled } from '@/lib/env';
 
 export const runtime = 'nodejs';
@@ -51,6 +52,22 @@ export async function POST(): Promise<NextResponse> {
       report: result.report,
     });
   } catch (err) {
+    if (err instanceof CoachLimitError) {
+      const d = err.decision;
+      const retryAfterSeconds = Math.max(1, Math.ceil((d.resetsAt.getTime() - Date.now()) / 1000));
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'coach_limit',
+          reason: d.reason,
+          usage: d.usage,
+          caps: d.caps,
+          resetsAt: d.resetsAt.toISOString(),
+          message: d.message,
+        },
+        { status: 429, headers: { 'Retry-After': retryAfterSeconds.toString() } },
+      );
+    }
     const message = err instanceof Error ? err.message : 'unknown error';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }

@@ -31,7 +31,8 @@ export default async function Dashboard() {
   if (!snap.user.onboardedAt) redirect('/onboarding');
 
   const coachSpentUsd = await fetchMonthlyCoachSpend(userId, new Date());
-  const coachCapUsd = env.COACH_MONTHLY_BUDGET_USD;
+  const coachCapUsd = env.COACH_MONTHLY_USD_CAP;
+  const coachDailyCap = env.COACH_DAILY_CAP;
 
   const monthsBuffer = snap.monthlyExpensesGbp > 0
     ? (snap.cashGbp / snap.monthlyExpensesGbp).toFixed(1)
@@ -142,8 +143,8 @@ export default async function Dashboard() {
             </p>
           )}
           <p className="mt-3 text-xs text-muted">
-            Coach LLM spend this month: <strong>${coachSpentUsd.toFixed(2)}</strong> of ${coachCapUsd.toFixed(2)} cap.
-            {coachSpentUsd >= coachCapUsd && ' Cap reached — narration paused until next month.'}
+            Coach LLM spend this month: <strong>${coachSpentUsd.toFixed(2)}</strong> of ${coachCapUsd.toFixed(2)} cap · daily run cap {coachDailyCap}.
+            {coachSpentUsd >= coachCapUsd && ' Cap reached — Coach paused until 1st of next month.'}
           </p>
           <div className="mt-4">
             <RunCoachButton />

@@ -35,7 +35,15 @@ import {
 import { redactForLLM, evaluateGuardrail } from '../security/security';
 import { env } from '../lib/env';
 import { costUsd } from './pricing';
-import { budgetStatus, monthlySpendUsd, utcMonthStart, type BudgetStatus } from './coach-budget';
+import {
+  budgetStatus,
+  checkCoachLimits,
+  CoachLimitError,
+  monthlySpendUsd,
+  utcMonthStart,
+  type BudgetStatus,
+  type CoachLimitCaps,
+} from './coach-budget';
 
 const DISCLAIMER =
   'Decision-support, not regulated financial advice. Verify against gov.uk ' +
@@ -389,12 +397,26 @@ export async function runCoach(args: {
   now?: Date;
   /** Override the env reading for tests. */
   modeOverride?: 'observer' | 'advisor';
-  /** Override the monthly cap for tests. Default reads env.COACH_MONTHLY_BUDGET_USD. */
-  budgetCapUsdOverride?: number;
+  /** Override the daily run cap + monthly $ cap for tests. */
+  capsOverride?: CoachLimitCaps;
 }): Promise<RunCoachResult> {
   const now = args.now ?? new Date();
   const mode = args.modeOverride ?? (env.WEALTH_MODE === 'observer' ? 'observer' : 'advisor');
-  const capUsd = args.budgetCapUsdOverride ?? env.COACH_MONTHLY_BUDGET_USD;
+  const caps: CoachLimitCaps = args.capsOverride ?? {
+    dailyCap: env.COACH_DAILY_CAP,
+    monthlyUsdCap: env.COACH_MONTHLY_USD_CAP,
+  };
+
+  // 0. Hard rate + spend limits. Observer mode bypasses the limit check
+  //    because it doesn't persist anything and costs nothing.
+  if (mode !== 'observer') {
+    const decision = await checkCoachLimits(args.db, { userId: args.userId, caps, now });
+    if (!decision.ok) {
+      // Throw before writing any agent_runs row — denied attempts leave
+      // no audit trail by design (they're not real runs).
+      throw new CoachLimitError(decision);
+    }
+  }
 
   // 1. Audit row — created up front so even a crash leaves a trace.
   let agentRunId: string | null = null;
@@ -417,14 +439,14 @@ export async function runCoach(args: {
     const rules = getTaxRules();
     const report = buildCoachReport({ snap, rules, now });
 
-    // 3. Budget read — cheap one-row sum. The deterministic report is free
-    //    and always runs; only narration is gated.
+    // 3. Budget snapshot for the report — informational; the cap was already
+    //    enforced in step 0.
     const spent = mode === 'observer'
       ? 0
       : await monthlySpendUsd(args.db, { userId: args.userId, now });
     const budget = budgetStatus({
       spentUsd: spent,
-      capUsd,
+      capUsd: caps.monthlyUsdCap,
       monthStart: utcMonthStart(now),
     });
     report.budget = budget;
@@ -433,8 +455,8 @@ export async function runCoach(args: {
     let tokensOut: number | undefined;
     let runCostUsd = 0;
 
-    // 4. Optional LLM narration — skipped silently when budget is exceeded.
-    if (args.narrator && mode !== 'observer' && !budget.exceeded) {
+    // 4. Optional LLM narration.
+    if (args.narrator && mode !== 'observer') {
       const prompt = buildNarratorPrompt(report);
       // Redact PII before sending to the model. The deterministic report
       // shouldn't contain raw PII either, but redact again as defence in depth.

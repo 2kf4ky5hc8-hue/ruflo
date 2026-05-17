@@ -251,18 +251,27 @@ interface FakeDb {
   updates: Array<{ table: string; values: any; where: any }>;
 }
 
-function fakeDb(opts: { spentRows?: Array<{ costUsd: string | null }> } = {}): { db: any; sink: FakeDb } {
+function fakeDb(opts: {
+  spentRows?: Array<{ costUsd: string | null }>;
+  runRows?: Array<{ id: string }>;
+} = {}): { db: any; sink: FakeDb } {
   const sink: FakeDb = { inserts: [], updates: [] };
   const spentRows = opts.spentRows ?? [];
+  const runRows = opts.runRows ?? [];
   let nextId = 1;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db: any = {
-    select(_cols?: any) {
+    select(cols?: any) {
+      // Differentiate the two coach-budget queries by their selected columns:
+      //   dailyRunCount uses select({ id: ... })
+      //   monthlySpendUsd uses select({ costUsd: ... })
+      const keys = cols ? Object.keys(cols) : [];
+      const rows = keys.includes('costUsd') ? spentRows : runRows;
       return {
         from(_table: any) {
           return {
             where(_w: any) {
-              return Promise.resolve(spentRows);
+              return Promise.resolve(rows);
             },
           };
         },
@@ -424,50 +433,77 @@ describe('runCoach orchestrator', () => {
   });
 });
 
-describe('runCoach budget guard', () => {
+describe('runCoach limit + budget guard', () => {
+  const CAPS = { dailyCap: 5, monthlyUsdCap: 2.5 };
+
   it('always attaches budget status to the report (no narrator needed)', async () => {
-    const { db } = fakeDb({ spentRows: [{ costUsd: '0.5' }, { costUsd: '0.25' }] });
+    const { db } = fakeDb({
+      spentRows: [{ costUsd: '0.5' }, { costUsd: '0.25' }],
+      runRows: [{ id: 'r1' }, { id: 'r2' }],
+    });
     const out = await runCoach({
       db,
       userId: 'user-1',
       now: NOW,
       modeOverride: 'advisor',
-      budgetCapUsdOverride: 2,
+      capsOverride: CAPS,
     });
 
     expect(out.budget.monthSpentUsd).toBeCloseTo(0.75, 6);
-    expect(out.budget.monthCapUsd).toBe(2);
+    expect(out.budget.monthCapUsd).toBe(2.5);
     expect(out.budget.exceeded).toBe(false);
     expect(out.report.budget).toEqual(out.budget);
   });
 
-  it('skips the narrator when monthly spend has reached the cap', async () => {
-    const { db } = fakeDb({ spentRows: [{ costUsd: '2.5' }] }); // already over cap
-    const narrator: Narrator = vi.fn(async () => ({
-      text: 'should never run',
-      model: 'claude-sonnet-4-6',
-      tokensIn: 1000,
-      tokensOut: 500,
-    }));
-
-    const out = await runCoach({
-      db,
-      userId: 'user-1',
-      now: NOW,
-      modeOverride: 'advisor',
-      narrator,
-      budgetCapUsdOverride: 2,
+  it('throws CoachLimitError with reason=monthly when spend has reached the cap', async () => {
+    const { db, sink } = fakeDb({
+      spentRows: [{ costUsd: '2.5' }],          // already over $ cap
+      runRows: [{ id: 'r1' }],
+    });
+    const narrator: Narrator = vi.fn(async () => {
+      throw new Error('narrator should never run when cap is reached');
     });
 
+    await expect(
+      runCoach({ db, userId: 'user-1', now: NOW, modeOverride: 'advisor', narrator, capsOverride: CAPS }),
+    ).rejects.toMatchObject({ name: 'CoachLimitError', decision: { reason: 'monthly' } });
+
     expect(narrator).not.toHaveBeenCalled();
-    expect(out.budget.exceeded).toBe(true);
-    expect(out.report.llmNarration).toBeUndefined();
-    expect(out.report.guardrail).toBeUndefined();
-    expect(out.costUsd).toBe(0);
+    expect(sink.inserts).toHaveLength(0);          // no agent_runs row written
+  });
+
+  it('throws CoachLimitError with reason=daily when runs today hit the cap', async () => {
+    const { db, sink } = fakeDb({
+      spentRows: [],
+      runRows: Array.from({ length: 5 }, (_, i) => ({ id: `r${i}` })),
+    });
+    const narrator: Narrator = vi.fn(async () => {
+      throw new Error('narrator should never run when daily cap is reached');
+    });
+
+    await expect(
+      runCoach({ db, userId: 'user-1', now: NOW, modeOverride: 'advisor', narrator, capsOverride: CAPS }),
+    ).rejects.toMatchObject({ name: 'CoachLimitError', decision: { reason: 'daily' } });
+
+    expect(narrator).not.toHaveBeenCalled();
+    expect(sink.inserts).toHaveLength(0);
+  });
+
+  it('observer mode bypasses both caps and skips persistence', async () => {
+    const { db, sink } = fakeDb({
+      spentRows: [{ costUsd: '999' }],
+      runRows: Array.from({ length: 100 }, (_, i) => ({ id: `r${i}` })),
+    });
+    const out = await runCoach({
+      db, userId: 'user-1', now: NOW, modeOverride: 'observer', capsOverride: CAPS,
+    });
+    expect(out.observerMode).toBe(true);
+    expect(out.reportId).toBeNull();
+    expect(sink.inserts).toHaveLength(0);
   });
 
   it('computes and reports cost in USD when narrator runs', async () => {
-    const { db, sink } = fakeDb({ spentRows: [] });
+    const { db, sink } = fakeDb({ spentRows: [], runRows: [] });
     const narrator: Narrator = async () => ({
       text: 'A short clean note. Decision-support, not regulated financial advice.',
       model: 'claude-sonnet-4-6',
@@ -481,7 +517,7 @@ describe('runCoach budget guard', () => {
       now: NOW,
       modeOverride: 'advisor',
       narrator,
-      budgetCapUsdOverride: 5,
+      capsOverride: { dailyCap: 5, monthlyUsdCap: 5 },
     });
 
     expect(out.costUsd).toBeCloseTo(4.5, 6);
@@ -494,13 +530,13 @@ describe('runCoach budget guard', () => {
   });
 
   it('leaves agent_runs.costUsd null when no narrator runs', async () => {
-    const { db, sink } = fakeDb({ spentRows: [] });
+    const { db, sink } = fakeDb({ spentRows: [], runRows: [] });
     const out = await runCoach({
       db,
       userId: 'user-1',
       now: NOW,
       modeOverride: 'advisor',
-      budgetCapUsdOverride: 5,
+      capsOverride: { dailyCap: 5, monthlyUsdCap: 5 },
     });
 
     expect(out.costUsd).toBe(0);

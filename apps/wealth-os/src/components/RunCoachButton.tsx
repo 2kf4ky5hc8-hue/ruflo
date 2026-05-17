@@ -2,11 +2,21 @@
 
 import { useState } from 'react';
 import type { CoachReport, RiskSeverity } from '@/services/coach';
-import type { BudgetStatus } from '@/services/coach-budget';
+import type {
+  BudgetStatus,
+  CoachLimitCaps,
+  CoachLimitUsage,
+  CoachLimitReason,
+} from '@/services/coach-budget';
 
 interface RunResponse {
   ok: boolean;
   error?: string;
+  reason?: CoachLimitReason;            // present on 429
+  usage?: CoachLimitUsage;              // present on 429
+  caps?: CoachLimitCaps;                // present on 429
+  resetsAt?: string;                    // ISO 8601, present on 429
+  message?: string;                     // human-readable, present on 429
   reportId?: string | null;
   observerMode?: boolean;
   narrated?: boolean;
@@ -18,6 +28,10 @@ interface RunResponse {
 
 function usd(n: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n);
+}
+
+function formatResetTime(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 }
 
 const severityClasses: Record<RiskSeverity, string> = {
@@ -61,9 +75,20 @@ export function RunCoachButton() {
         {loading ? 'Running…' : 'Run Wealth Coach'}
       </button>
 
-      {result && !result.ok && (
+      {result && !result.ok && result.error === 'coach_limit' && result.usage && result.caps && result.resetsAt && (
+        <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <strong>
+            {result.reason === 'daily'
+              ? `Daily Coach cap reached (${result.usage.runsToday}/${result.caps.dailyCap} runs today).`
+              : `Monthly Coach spend cap reached ($${result.usage.monthlyCostUsd.toFixed(3)} / $${result.caps.monthlyUsdCap.toFixed(2)}).`}
+          </strong>{' '}
+          Resets {formatResetTime(result.resetsAt)}. Nothing was saved.
+        </p>
+      )}
+
+      {result && !result.ok && result.error !== 'coach_limit' && (
         <p className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          Coach failed: {result.error ?? 'unknown error'}
+          Coach failed: {result.message ?? result.error ?? 'unknown error'}
         </p>
       )}
 
