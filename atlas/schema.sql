@@ -9,12 +9,18 @@ create table if not exists jobs (
   stage text not null default 'Lead',
   next_action text default '',
   amount_outstanding numeric default 0,
+  payment_status text default 'Not invoiced',
+  invoice_ref text default '',
   notes text default '',
   archived boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   updated_by text default ''
 );
+
+-- Safe to re-run: adds the money-snapshot columns to an existing table.
+alter table jobs add column if not exists payment_status text default 'Not invoiced';
+alter table jobs add column if not exists invoice_ref text default '';
 
 alter table jobs enable row level security;
 
