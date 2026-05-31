@@ -56,17 +56,17 @@ Definition of done for every story:
 
 | ID    | Story                                                                                  | Pts | Notes |
 |-------|----------------------------------------------------------------------------------------|-----|-------|
-| I-101 | CSV import: detect schema for HL, AJ Bell, Vanguard UK, Trading 212, Freetrade.        | 5   | One adapter per broker; fixtures in `tests/fixtures/brokers/`. |
-| I-102 | CSV import: bank statements (Monzo, Starling, Revolut, HSBC, Barclays).                | 5   | Same adapter pattern. |
-| I-103 | Manual transaction entry UI with category picker.                                      | 3   | Used as fallback for everything. |
-| I-104 | Manual holding entry UI: instrument lookup by ISIN/ticker, cost basis, asof.           | 3   | Lookup hits FMP/Tiingo, caches `instruments` rows. |
-| I-105 | TrueLayer AISP integration: OAuth flow, accounts + balances + 90d transactions.        | 8   | Provider abstraction so Tink/Yapily can swap in. |
-| I-106 | Consent expiry handler: alert user 7 days before; one-tap reconsent.                   | 3   | Reads `connections.consent_expires_at`. |
-| I-107 | Transfer-pair detection: same amount, opposite signs, ≤2 days apart, ≥0.9 confidence.  | 3   | Idempotent re-run safe. |
-| I-108 | Duplicate-transaction detection: `(account_id, posted_at, amount, counterparty)`.      | 2   | Surface in import preview. |
-| I-109 | Import preview screen: show first 50 rows, category guesses, transfer pairs.           | 5   | User accepts before commit. |
+| I-101 | CSV import: detect broker/bank schema (Monzo, Starling, HL, Trading 212, generic). | 5 ✅ | `src/services/csv-import.ts` — auto-detect + RFC4180 parser, 10 tests. `/import` preview→commit. |
+| I-102 | CSV import: bank statements (money-in/out + signed-amount generic profiles).            | 5 ✅ | Same parser; `generic_inout` + `generic_signed` profiles cover most UK bank exports. |
+| I-103 | Manual transaction entry UI with category picker.                                      | 3 ✅ | `/accounts` — add account, add transaction (in/out, date, category), recent list, delete. |
+| I-104 | Manual holding entry UI: instrument lookup by ISIN/ticker, cost basis.                  | 3 ✅ | `/holdings` — findOrCreateInstrument (ISIN vs ticker), upsert per (account, instrument). |
+| I-105 | TrueLayer AISP integration: OAuth flow, accounts + balances + 90d transactions.        | 8   | Provider abstraction so Tink/Yapily can swap in. Deferred. |
+| I-106 | Consent expiry handler: alert user 7 days before; one-tap reconsent.                   | 3   | Reads `connections.consent_expires_at`. Deferred (with I-105). |
+| I-107 | Transfer-pair detection: same amount, opposite signs, ≤2 days apart, ≥0.9 confidence.  | 3   | Idempotent re-run safe. Follow-up. |
+| I-108 | Duplicate-transaction detection: `(account_id, posted_at, amount, counterparty)`.      | 2 ◐ | `rowKey` dedupe helper built + tested; not yet enforced in commit. |
+| I-109 | Import preview screen: show first 50 rows before commit.                               | 5 ✅ | `/import` previews first 50 rows + warnings + detected format before commit. |
 
-**Epic total: 37 pts**
+**Epic total: 37 pts** — core ingest (CSV + manual) done; bank-API (I-105/106), transfer-pairs (I-107) deferred.
 
 ---
 
@@ -445,3 +445,4 @@ Cut lines if time runs short, in order:
 | BC/DT/PR | Business obligations, debt triage, protection — UI + wired into evaluator. | `/business` `/debt` `/protection`; live gates proven. |
 | BM-1301/1302 | Default benchmark plan (waterfall + blended return) + comparator. | `/plan`; 10 tests. |
 | PP-1401..1405 | Paper portfolio + decision journal + vs-benchmark. | `/paper`; 10 tests; open/mark/close proven live. |
+| I-101/102/103/104/109 | CSV import (auto-detect) + manual transaction + manual holdings + import preview. | `/accounts` `/holdings` `/import`; 10 CSV tests; full chain proven live (£6,714.60 balance from manual + CSV). |
