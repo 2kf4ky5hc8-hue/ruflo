@@ -1,15 +1,19 @@
 # UK tax rules — versioned. Updated each Budget / Finance Act.
-# Tax year notation: `2025` = tax year 2025/26 (6 April 2025 – 5 April 2026).
+# Tax year notation: `2026` = tax year 2026/27 (6 April 2026 – 5 April 2027).
 # IMPORTANT: VERIFY EACH ENTRY AGAINST GOV.UK AT RUNTIME. Do not rely on these
 # values blindly for live tax-relevant decisions.
 
-version: "2026-05-16-draft"
+version: "2026-05-31"
 jurisdiction: GB
 
+# Active = the year we're currently in. Previous years stay in `archive`
+# so historic calculations can resolve the right ruleset.
+active_tax_year: 2026
+
 tax_year:
-  current_starts_on: "2025-04-06"
-  current_ends_on:   "2026-04-05"
-  number: 2025
+  current_starts_on: "2026-04-06"
+  current_ends_on:   "2027-04-05"
+  number: 2026
 
 isa:
   total_allowance_gbp: 20000
@@ -21,6 +25,7 @@ isa:
   lifetime_isa_age_max_contrib: 49
   flexible_isa_replacements_allowed_same_year: true
   multiple_same_type_isas_allowed: true   # rule change effective 6 April 2024
+  lisa_single_subscription_per_year: true # LISA exception to the above
   partial_transfers_current_year_allowed: true
   eligible_investments:
     - uk_listed_shares
@@ -32,11 +37,14 @@ isa:
     - gilts
     - reits
     - cash
+  # From 6 April 2026 cryptoasset ETNs are no longer eligible for new ISA
+  # subscriptions. Existing holdings before that date may remain.
   ineligible_examples:
     - unlisted_company_shares
     - direct_property
     - physical_commodities
     - cryptocurrency
+    - cryptoasset_etn_new_purchases_from_2026_04_06
 
 income_tax_england_wales_ni:
   personal_allowance_gbp: 12570
@@ -48,10 +56,11 @@ income_tax_england_wales_ni:
   higher_rate_band_upper_gbp: 125140
   additional_rate_pct: 0.45
 
+# Dividend tax rates rose from 6 April 2026.
 dividend_tax:
-  allowance_gbp: 500                       # 2024/25 onwards
-  basic_rate_pct: 0.0875
-  higher_rate_pct: 0.3375
+  allowance_gbp: 500
+  basic_rate_pct: 0.1075
+  higher_rate_pct: 0.3575
   additional_rate_pct: 0.3935
 
 capital_gains_tax:
@@ -64,7 +73,7 @@ capital_gains_tax:
 
 national_insurance:
   class_1_primary_threshold_gbp: 12570
-  class_1_main_rate_pct: 0.08              # employee, post-2024 cuts
+  class_1_main_rate_pct: 0.08
   class_1_upper_earnings_limit_gbp: 50270
   class_1_above_uel_pct: 0.02
 
@@ -73,7 +82,7 @@ corporation_tax:
   small_profits_threshold_gbp: 50000
   main_rate_pct: 0.25
   main_rate_threshold_gbp: 250000
-  marginal_relief_fraction: 0.015          # 3/200
+  marginal_relief_fraction: 0.015
 
 pension:
   annual_allowance_gbp: 60000
@@ -85,17 +94,33 @@ pension:
 
 reminders:
   - id: isa_year_end
-    when_relative: "P-30D before 2026-04-05"
+    when_relative: "P-30D before 2027-04-05"
     message: "30 days to use this year's ISA allowance."
   - id: isa_two_weeks
-    when_relative: "P-14D before 2026-04-05"
+    when_relative: "P-14D before 2027-04-05"
     message: "14 days to use this year's ISA allowance."
   - id: self_assessment_paper
-    when: "2025-10-31"
+    when: "2026-10-31"
     message: "Paper self-assessment deadline."
   - id: self_assessment_online
-    when: "2026-01-31"
+    when: "2027-01-31"
     message: "Online self-assessment + payment on account deadline."
+
+# Prior tax years kept here so historic ISA deposits / dividends in old data
+# resolve against the rules in force at the time.
+archive:
+  2025:
+    tax_year:
+      current_starts_on: "2025-04-06"
+      current_ends_on:   "2026-04-05"
+      number: 2025
+    isa:
+      total_allowance_gbp: 20000
+    dividend_tax:
+      allowance_gbp: 500
+      basic_rate_pct: 0.0875       # pre 2026/27 rates
+      higher_rate_pct: 0.3375
+      additional_rate_pct: 0.3935
 
 disclaimers:
   primary: |

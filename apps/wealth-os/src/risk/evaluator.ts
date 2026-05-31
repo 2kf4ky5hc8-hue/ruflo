@@ -9,12 +9,13 @@
 //   * Treat the result as advisory until the Approval Centre records a decision.
 
 import type {
-  AssetClass, BreachedRule, EvaluatorContext, PortfolioState, ProposedAction,
-  RiskEvaluation, RiskProfile, RuleId, SaferAlternative, Severity,
-  SuggestedAdjustment,
+  AssetClass, BreachedRule, EvaluatorConstants, EvaluatorContext, PortfolioState,
+  ProposedAction, RiskEvaluation, RiskProfile, RuleId, SaferAlternative,
+  Severity, SuggestedAdjustment,
 } from './types';
 import {
-  ALWAYS_REQUIRE_APPROVAL, HIGH_RISK_CLASSES, SPECULATIVE_CLASSES,
+  ALWAYS_REQUIRE_APPROVAL, DEFAULT_CONSTANTS, HIGH_RISK_CLASSES,
+  SPECULATIVE_CLASSES,
 } from './types';
 
 const EPS = 1e-6;
@@ -173,6 +174,7 @@ export function evaluateRisk(
   portfolio: PortfolioState,
   profile: RiskProfile,
   context: EvaluatorContext = {},
+  constants: EvaluatorConstants = DEFAULT_CONSTANTS,
 ): RiskEvaluation {
   const reasons: string[] = [];
   const warnings: string[] = [];
@@ -206,37 +208,59 @@ export function evaluateRisk(
     // executors are responsible for ensuring no margin is used.
   }
 
-  // 2. Single-position cap
+  // 2. Single-position cap (with portfolio-size aware tightening — review §2).
   // Cash isn't a "position" in the concentration sense; deposits into a cash
   // wrapper don't concentrate risk in a single instrument.
   if (isAddingToPosition && totalAfter > EPS && action.assetClass !== 'cash') {
     const newPosition = portfolio.existingPositionGbp + action.amountGbp;
     const observed = pct(newPosition, totalAfter);
-    const cap = profile.maxSinglePositionPct;
-    if (observed > cap) {
-      pushBreach(breaches, 'max_single_position', 'block',
-        `Single position would be ${(observed * 100).toFixed(1)}% of portfolio (cap ${(cap * 100).toFixed(1)}%).`,
-        { capPct: cap, observedPct: observed, overByGbp: newPosition - cap * totalAfter });
-    } else if (observed > cap * 0.9) {
-      warnings.push(`Approaching single-position cap (${(observed * 100).toFixed(1)}% vs ${(cap * 100).toFixed(1)}%).`);
+    const baseCap = profile.maxSinglePositionPct;
+    const tightCap = profile.maxSinglePositionSmallPortfolioPct;
+    const isSmallPortfolio = totalAfter < constants.smallPortfolioThresholdGbp;
+    const effectiveCap = (isSmallPortfolio && tightCap != null) ? tightCap : baseCap;
+    const ruleId: RuleId = (isSmallPortfolio && tightCap != null)
+      ? 'max_single_position_small_portfolio'
+      : 'max_single_position';
+
+    if (observed > effectiveCap) {
+      const label = (isSmallPortfolio && tightCap != null)
+        ? `tighter "starter portfolio" cap ${(effectiveCap * 100).toFixed(1)}% (portfolio under £${constants.smallPortfolioThresholdGbp.toLocaleString('en-GB')})`
+        : `cap ${(effectiveCap * 100).toFixed(1)}%`;
+      pushBreach(breaches, ruleId, 'block',
+        `Single position would be ${(observed * 100).toFixed(1)}% of portfolio (${label}).`,
+        { capPct: effectiveCap, observedPct: observed, overByGbp: newPosition - effectiveCap * totalAfter });
+    } else if (observed > effectiveCap * 0.9) {
+      warnings.push(`Approaching single-position cap (${(observed * 100).toFixed(1)}% vs ${(effectiveCap * 100).toFixed(1)}%).`);
     }
   }
 
-  // 3. Speculative cap
+  // 3. Speculative cap (with cash-buffer-aware tightening — review §2).
   if (isAddingToPosition && SPECULATIVE_CLASSES.has(action.assetClass) && totalAfter > EPS) {
     const newSpec = portfolio.speculativeExposureGbp + action.amountGbp;
     const observed = pct(newSpec, totalAfter);
-    const cap = profile.maxSpeculativePct;
-    if (observed > cap) {
-      pushBreach(breaches, 'max_speculative', 'block',
-        `Speculative exposure would be ${(observed * 100).toFixed(1)}% of portfolio (cap ${(cap * 100).toFixed(1)}%).`,
-        { capPct: cap, observedPct: observed, overByGbp: newSpec - cap * totalAfter });
-    } else if (observed > cap * 0.9) {
-      warnings.push(`Approaching speculative cap (${(observed * 100).toFixed(1)}% vs ${(cap * 100).toFixed(1)}%).`);
+    const baseCap = profile.maxSpeculativePct;
+    const tightCap = profile.maxSpeculativeUntilBufferHealthyPct;
+    const cashFloor = profile.cashFloorMonths * portfolio.monthlyExpensesGbp;
+    const bufferHealthy = portfolio.monthlyExpensesGbp <= EPS
+      || portfolio.cashBufferGbp >= cashFloor;
+    const effectiveCap = (!bufferHealthy && tightCap != null) ? tightCap : baseCap;
+    const ruleId: RuleId = (!bufferHealthy && tightCap != null)
+      ? 'max_speculative_until_buffer_healthy'
+      : 'max_speculative';
+
+    if (observed > effectiveCap) {
+      const label = (!bufferHealthy && tightCap != null)
+        ? `tighter "cash buffer below floor" cap ${(effectiveCap * 100).toFixed(1)}%`
+        : `cap ${(effectiveCap * 100).toFixed(1)}%`;
+      pushBreach(breaches, ruleId, 'block',
+        `Speculative exposure would be ${(observed * 100).toFixed(1)}% of portfolio (${label}).`,
+        { capPct: effectiveCap, observedPct: observed, overByGbp: newSpec - effectiveCap * totalAfter });
+    } else if (observed > effectiveCap * 0.9) {
+      warnings.push(`Approaching speculative cap (${(observed * 100).toFixed(1)}% vs ${(effectiveCap * 100).toFixed(1)}%).`);
     }
   }
 
-  // 4. Crypto cap
+  // 4. Crypto cap (plus buffer + toxic-debt gates — review §1.4 + §2).
   if (isAddingToPosition && action.assetClass === 'crypto' && totalAfter > EPS) {
     const newCrypto = portfolio.cryptoExposureGbp + action.amountGbp;
     const observed = pct(newCrypto, totalAfter);
@@ -245,6 +269,21 @@ export function evaluateRisk(
       pushBreach(breaches, 'crypto_cap', 'block',
         `Crypto exposure would be ${(observed * 100).toFixed(1)}% of portfolio (cap ${(cap * 100).toFixed(1)}%).`,
         { capPct: cap, observedPct: observed, overByGbp: newCrypto - cap * totalAfter });
+    }
+
+    if (profile.cryptoRequiresBuffer && portfolio.monthlyExpensesGbp > 0) {
+      const cashFloor = profile.cashFloorMonths * portfolio.monthlyExpensesGbp;
+      if (portfolio.cashBufferGbp < cashFloor) {
+        pushBreach(breaches, 'crypto_requires_buffer', 'block',
+          `Crypto allocation is gated until cash buffer is at the floor (£${portfolio.cashBufferGbp.toFixed(0)} vs £${cashFloor.toFixed(0)}).`);
+      }
+    }
+
+    if (profile.cryptoRequiresNoToxicDebt
+        && (portfolio.highestDebtAprPct ?? 0) > constants.toxicDebtAprPct) {
+      pushBreach(breaches, 'crypto_requires_no_toxic_debt', 'block',
+        `Crypto allocation is gated while you hold debt above ${(constants.toxicDebtAprPct * 100).toFixed(1)}% APR ` +
+        `(highest current APR ${((portfolio.highestDebtAprPct ?? 0) * 100).toFixed(1)}%). Clear toxic debt first.`);
     }
   }
 
@@ -260,6 +299,39 @@ export function evaluateRisk(
       pushBreach(breaches, 'cash_floor', 'block',
         `Cash buffer would fall to £${cashAfter.toFixed(0)} (floor is £${required.toFixed(0)} = ${profile.cashFloorMonths} months of expenses).`,
         { overByGbp: required - cashAfter });
+    }
+  }
+
+  // 5b. Business reserve floor (review §10.2).
+  // Personal risk-up is blocked while the business has unpaid obligations
+  // due in the next 90 days that exceed business cash, OR while business cash
+  // is below `businessReserveFloorMonths × businessMonthlyFixedGbp`.
+  if (!context.isPaperTrade
+      && isAddingToPosition
+      && action.assetClass !== 'cash'
+      && action.wrapper !== 'isa' // ISA deposit is the disciplined path; don't block it
+      && (portfolio.businessCashGbp ?? 0) >= 0
+      && (portfolio.businessObligationsDue90dGbp ?? 0) > 0) {
+    const cash = portfolio.businessCashGbp ?? 0;
+    const obligations = portfolio.businessObligationsDue90dGbp ?? 0;
+    if (obligations > cash) {
+      pushBreach(breaches, 'business_obligations_unpaid', 'block',
+        `Business obligations due in 90 days (£${obligations.toFixed(0)}) exceed business cash (£${cash.toFixed(0)}). ` +
+        `Personal risk-up is blocked until the business runway is safe.`);
+    }
+  }
+  if (!context.isPaperTrade
+      && isAddingToPosition
+      && action.assetClass !== 'cash'
+      && action.wrapper !== 'isa'
+      && profile.businessReserveFloorMonths > 0
+      && (portfolio.businessMonthlyFixedGbp ?? 0) > 0) {
+    const reserveFloor = profile.businessReserveFloorMonths * (portfolio.businessMonthlyFixedGbp ?? 0);
+    const cash = portfolio.businessCashGbp ?? 0;
+    if (cash < reserveFloor) {
+      pushBreach(breaches, 'business_reserve_floor', 'warn',
+        `Business reserve £${cash.toFixed(0)} is below the ${profile.businessReserveFloorMonths}-month fixed-cost floor of £${reserveFloor.toFixed(0)}. ` +
+        `Consider topping up the business reserve before increasing personal risk.`);
     }
   }
 
@@ -322,7 +394,9 @@ function computeAdjustment(
   breaches: BreachedRule[],
 ): SuggestedAdjustment | null {
   const quantitative: RuleId[] = [
-    'max_single_position', 'max_speculative', 'crypto_cap', 'isa_allowance', 'new_instrument_cap',
+    'max_single_position', 'max_single_position_small_portfolio',
+    'max_speculative', 'max_speculative_until_buffer_healthy',
+    'crypto_cap', 'isa_allowance', 'new_instrument_cap',
   ];
   const haveBlockingQuant = breaches.some((b) => b.severity === 'block' && quantitative.includes(b.rule));
   const haveCashFloor = breaches.some((b) => b.rule === 'cash_floor' && b.severity === 'block');
@@ -358,16 +432,43 @@ function computeAlternative(
       description: 'Route the excess into a GIA (general investment account) or wait for the next tax year.',
     };
   }
+  // Buffer + toxic-debt crypto gates take precedence over the generic
+  // "swap to thematic ETF" suggestion: their root cause is the user's wider
+  // balance sheet, not the asset class.
+  if (breaches.some((b) => b.rule === 'crypto_requires_buffer')) {
+    return {
+      kind: 'wait',
+      description: 'Top up the cash buffer to the floor first; crypto allocation unlocks after.',
+    };
+  }
+  if (breaches.some((b) => b.rule === 'crypto_requires_no_toxic_debt')) {
+    return {
+      kind: 'switch_asset_class',
+      description: 'Pay down toxic debt before allocating to crypto — the after-tax return on debt-payoff usually beats expected crypto return.',
+    };
+  }
   if (breaches.some((b) => b.rule === 'crypto_cap' || b.rule === 'requires_approval_crypto_or_derivative')) {
     return {
       kind: 'switch_asset_class',
       description: 'Consider a thematic equity ETF for similar exposure with regulated wrapper coverage.',
     };
   }
-  if (breaches.some((b) => b.rule === 'max_speculative')) {
+  if (breaches.some((b) => b.rule === 'max_speculative' || b.rule === 'max_speculative_until_buffer_healthy')) {
     return {
       kind: 'switch_asset_class',
-      description: 'Use a developed-market equity ETF instead of an individual small/thematic name.',
+      description: 'Use a developed-market equity ETF instead of an individual small/thematic name. Speculative caps relax once the cash buffer is at the floor.',
+    };
+  }
+  if (breaches.some((b) => b.rule === 'business_obligations_unpaid')) {
+    return {
+      kind: 'wait',
+      description: 'Reserve enough cash in the business to cover obligations due in the next 90 days first.',
+    };
+  }
+  if (breaches.some((b) => b.rule === 'business_reserve_floor')) {
+    return {
+      kind: 'split',
+      description: 'Split half this contribution into business reserve until the fixed-cost floor is met.',
     };
   }
   if (breaches.some((b) => b.rule === 'cash_floor')) {

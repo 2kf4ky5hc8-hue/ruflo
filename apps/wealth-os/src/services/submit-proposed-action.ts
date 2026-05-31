@@ -77,7 +77,11 @@ function profileRowToProfile(row: typeof riskProfiles.$inferSelect): RiskProfile
   return {
     name: row.name,
     maxSinglePositionPct: num(row.maxSinglePositionPct),
+    maxSinglePositionSmallPortfolioPct: row.maxSinglePositionSmallPortfolioPct == null
+      ? null : num(row.maxSinglePositionSmallPortfolioPct),
     maxSpeculativePct: num(row.maxSpeculativePct),
+    maxSpeculativeUntilBufferHealthyPct: row.maxSpeculativeUntilBufferHealthyPct == null
+      ? null : num(row.maxSpeculativeUntilBufferHealthyPct),
     maxSectorPct: num(row.maxSectorPct),
     maxCountryPct: num(row.maxCountryPct),
     maxCurrencyPct: num(row.maxCurrencyPct),
@@ -87,7 +91,10 @@ function profileRowToProfile(row: typeof riskProfiles.$inferSelect): RiskProfile
     leverageAllowed: row.leverageAllowed,
     optionsAllowed: row.optionsAllowed,
     cryptoCapPct: num(row.cryptoCapPct),
+    cryptoRequiresBuffer: row.cryptoRequiresBuffer,
+    cryptoRequiresNoToxicDebt: row.cryptoRequiresNoToxicDebt,
     cashFloorMonths: num(row.cashFloorMonths),
+    businessReserveFloorMonths: num(row.businessReserveFloorMonths),
     coolingOffMinutes: row.coolingOffMinutes,
     sleepModeStart: row.sleepModeStart,
     sleepModeEnd: row.sleepModeEnd,

@@ -16,16 +16,20 @@ const PLACEHOLDERS = new Set(['', '…', '...', 'change-me', 'dev-secret-change-
 function pickSecret(name: string, raw: string | undefined, devDefault: string): string {
   const value = raw ?? '';
   const isDev = process.env.NODE_ENV !== 'production';
+  // Next.js sets NEXT_PHASE during build-time collection. Page-data collection
+  // touches server modules; we don't need a real secret to compile — only at
+  // runtime to sign tokens. Treat build phases as dev for this check.
+  const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
   const looksWeak = PLACEHOLDERS.has(value) || value.length < 32;
 
   if (looksWeak) {
-    if (!isDev) {
+    if (!isDev && !isBuildPhase) {
       throw new Error(
         `${name} must be a strong 32+ character secret in production. ` +
         `Generate one with: openssl rand -base64 32`,
       );
     }
-    if (value && value !== devDefault) {
+    if (value && value !== devDefault && !isBuildPhase) {
       console.warn(`[env] ${name} too short — using dev default. Set a 32+ char value to silence this.`);
     }
     return devDefault;

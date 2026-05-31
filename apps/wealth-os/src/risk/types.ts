@@ -60,7 +60,17 @@ export interface RiskProfile {
   name: string;
   /** decimal, 0..1 — e.g. 0.12 for 12% */
   maxSinglePositionPct: number;
+  /**
+   * Tighter cap that applies while the user's portfolio is below
+   * `smallPortfolioThresholdGbp`. Null = no special tighter cap.
+   */
+  maxSinglePositionSmallPortfolioPct?: number | null;
   maxSpeculativePct: number;
+  /**
+   * Tighter speculative cap until the personal cash buffer is at the
+   * floor. Null = no special tighter cap.
+   */
+  maxSpeculativeUntilBufferHealthyPct?: number | null;
   maxSectorPct: number;
   maxCountryPct: number;
   maxCurrencyPct: number;
@@ -70,8 +80,14 @@ export interface RiskProfile {
   leverageAllowed: boolean;
   optionsAllowed: boolean;
   cryptoCapPct: number;
-  /** months of essential expenses required as cash floor */
+  /** Crypto allocation is blocked while personal cash buffer is below floor. */
+  cryptoRequiresBuffer: boolean;
+  /** Crypto allocation is blocked while any debt is above the toxic-debt APR. */
+  cryptoRequiresNoToxicDebt: boolean;
+  /** Months of essential expenses required as cash floor */
   cashFloorMonths: number;
+  /** Months of business fixed costs required as business reserve. */
+  businessReserveFloorMonths: number;
   coolingOffMinutes: number;
   sleepModeStart: string; // "HH:MM"
   sleepModeEnd: string;   // "HH:MM"
@@ -79,6 +95,20 @@ export interface RiskProfile {
   liquidityMinAdvGbp: number;
   paperTradeDays: number;
 }
+
+/**
+ * Global constants the evaluator needs but that aren't profile-tunable.
+ * Centralised here so callers can override for tests.
+ */
+export interface EvaluatorConstants {
+  smallPortfolioThresholdGbp: number;
+  toxicDebtAprPct: number;
+}
+
+export const DEFAULT_CONSTANTS: EvaluatorConstants = {
+  smallPortfolioThresholdGbp: 25_000,
+  toxicDebtAprPct: 0.06,
+};
 
 export interface ProposedAction {
   kind: ProposedActionKind;
@@ -107,6 +137,24 @@ export interface PortfolioState {
   monthlyExpensesGbp: number;
   /** Remaining ISA allowance this tax year (GBP). */
   isaRemainingGbp: number;
+
+  /**
+   * Business cashflow signals (review §10.2). Optional — when both are 0
+   * or undefined, business-reserve checks are skipped.
+   */
+  /** Cash sitting in business accounts. */
+  businessCashGbp?: number;
+  /** Sum of unpaid business obligations (VAT/PAYE/CT/payroll/rent etc.) due in the next 90 days. */
+  businessObligationsDue90dGbp?: number;
+  /** Monthly business fixed overhead (payroll + rent + recurring software). */
+  businessMonthlyFixedGbp?: number;
+
+  /**
+   * Highest APR across the user's debt items. Used for crypto / risk-up
+   * gating against toxic debt. 0 means no debt or debt only at 0% APR.
+   */
+  highestDebtAprPct?: number;
+
   /** Optional: P&L percentages — if known, used for max-loss rules. */
   dayPnlPct?: number;
   weekPnlPct?: number;
@@ -127,9 +175,15 @@ export type Severity = 'info' | 'warn' | 'block';
 export type RuleId =
   | 'invalid_input'
   | 'max_single_position'
+  | 'max_single_position_small_portfolio'
   | 'max_speculative'
+  | 'max_speculative_until_buffer_healthy'
   | 'crypto_cap'
+  | 'crypto_requires_buffer'
+  | 'crypto_requires_no_toxic_debt'
   | 'cash_floor'
+  | 'business_reserve_floor'
+  | 'business_obligations_unpaid'
   | 'isa_allowance'
   | 'leverage_disallowed'
   | 'options_disallowed'

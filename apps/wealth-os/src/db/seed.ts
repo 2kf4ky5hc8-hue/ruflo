@@ -13,6 +13,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const configDir = resolve(__dirname, '../../config');
 
 interface TaxRules {
+  active_tax_year: number;
   tax_year: { number: number };
   isa: { total_allowance_gbp: number };
 }
@@ -20,7 +21,9 @@ interface TaxRules {
 interface RiskProfilePreset {
   name: string;
   max_single_position_pct: number;
+  max_single_position_small_portfolio_pct?: number;
   max_speculative_pct: number;
+  max_speculative_until_buffer_healthy_pct?: number;
   max_sector_pct: number;
   max_country_pct: number;
   max_currency_pct: number;
@@ -30,7 +33,10 @@ interface RiskProfilePreset {
   leverage_allowed: boolean;
   options_allowed: boolean;
   crypto_cap_pct: number;
+  crypto_requires_buffer?: boolean;
+  crypto_requires_no_toxic_debt?: boolean;
   cash_floor_months: number;
+  business_reserve_floor_months?: number;
   cooling_off_minutes: number;
   sleep_mode_start: string;
   sleep_mode_end: string;
@@ -128,7 +134,9 @@ async function main() {
       userId: user.id,
       name: preset.name,
       maxSinglePositionPct: preset.max_single_position_pct.toString(),
+      maxSinglePositionSmallPortfolioPct: preset.max_single_position_small_portfolio_pct?.toString() ?? null,
       maxSpeculativePct: preset.max_speculative_pct.toString(),
+      maxSpeculativeUntilBufferHealthyPct: preset.max_speculative_until_buffer_healthy_pct?.toString() ?? null,
       maxSectorPct: preset.max_sector_pct.toString(),
       maxCountryPct: preset.max_country_pct.toString(),
       maxCurrencyPct: preset.max_currency_pct.toString(),
@@ -138,7 +146,10 @@ async function main() {
       leverageAllowed: preset.leverage_allowed,
       optionsAllowed: preset.options_allowed,
       cryptoCapPct: preset.crypto_cap_pct.toString(),
+      cryptoRequiresBuffer: preset.crypto_requires_buffer ?? true,
+      cryptoRequiresNoToxicDebt: preset.crypto_requires_no_toxic_debt ?? true,
       cashFloorMonths: preset.cash_floor_months.toString(),
+      businessReserveFloorMonths: (preset.business_reserve_floor_months ?? 3).toString(),
       coolingOffMinutes: preset.cooling_off_minutes,
       sleepModeStart: preset.sleep_mode_start,
       sleepModeEnd: preset.sleep_mode_end,
@@ -164,7 +175,7 @@ async function main() {
   const allowance = taxRules.isa.total_allowance_gbp.toString();
   await db.insert(isaYears).values({
     userId: user.id,
-    taxYear: taxRules.tax_year.number,
+    taxYear: taxRules.active_tax_year ?? taxRules.tax_year.number,
     allowance,
     deposited: '0',
     remaining: allowance,

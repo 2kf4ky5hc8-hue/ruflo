@@ -42,8 +42,12 @@ export const accounts = pgTable('accounts', {
   accountNumberMasked: varchar('account_number_masked', { length: 20 }),
   isIsa: boolean('is_isa').notNull().default(false),
   isaType: varchar('isa_type', { length: 30 }),
+  isFlexible: boolean('is_flexible').notNull().default(false),
   openedAt: timestamp('opened_at', { withTimezone: true }),
   closedAt: timestamp('closed_at', { withTimezone: true }),
+  reconciliationStatus: varchar('reconciliation_status', { length: 20 }).notNull().default('unreconciled'),
+  lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
+  confidenceScore: numeric('confidence_score', { precision: 5, scale: 4 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   userTypeIdx: index('accounts_user_type_idx').on(t.userId, t.type),
@@ -86,6 +90,8 @@ export const transactions = pgTable('transactions', {
   source: varchar('source', { length: 40 }).notNull().default('manual'),
   sourceRef: varchar('source_ref', { length: 200 }),
   confidenceScore: numeric('confidence_score', { precision: 5, scale: 4 }),
+  reconciliationStatus: varchar('reconciliation_status', { length: 20 }).notNull().default('unreconciled'),
+  lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   accountTimeIdx: index('tx_account_time_idx').on(t.accountId, t.postedAt),
@@ -116,6 +122,9 @@ export const holdings = pgTable('holdings', {
   currency: varchar('currency', { length: 3 }).notNull(),
   asOf: timestamp('as_of', { withTimezone: true }).notNull(),
   source: varchar('source', { length: 40 }).notNull().default('manual'),
+  reconciliationStatus: varchar('reconciliation_status', { length: 20 }).notNull().default('unreconciled'),
+  lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
+  confidenceScore: numeric('confidence_score', { precision: 5, scale: 4 }),
 }, (t) => ({
   accountInstrUnique: uniqueIndex('holdings_account_instr_uq').on(t.accountId, t.instrumentId),
 }));
@@ -198,6 +207,72 @@ export const businesses = pgTable('businesses', {
   yearEnd: varchar('year_end', { length: 5 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const businessObligations = pgTable('business_obligations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  businessId: uuid('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  kind: varchar('kind', { length: 40 }).notNull(),
+  description: text('description'),
+  amountGbp: money('amount_gbp').notNull(),
+  dueAt: timestamp('due_at', { withTimezone: true }),
+  recurring: varchar('recurring', { length: 20 }).notNull().default('one_off'),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  source: varchar('source', { length: 40 }).notNull().default('manual'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const debtItems = pgTable('debt_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: userIdRef(),
+  name: varchar('name', { length: 160 }).notNull(),
+  kind: varchar('kind', { length: 40 }).notNull(),
+  balanceGbp: money('balance_gbp').notNull(),
+  aprPct: numeric('apr_pct', { precision: 6, scale: 4 }).notNull().default('0'),
+  minimumPaymentGbp: money('minimum_payment_gbp'),
+  secured: boolean('secured').notNull().default(false),
+  termMonths: integer('term_months'),
+  taxDeductible: boolean('tax_deductible').notNull().default(false),
+  source: varchar('source', { length: 40 }).notNull().default('manual'),
+  lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userAprIdx: index('debt_items_user_apr_idx').on(t.userId, t.aprPct),
+}));
+
+export const insurancePolicies = pgTable('insurance_policies', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: userIdRef(),
+  kind: varchar('kind', { length: 40 }).notNull(),
+  provider: varchar('provider', { length: 200 }),
+  coverAmountGbp: money('cover_amount_gbp'),
+  monthlyPremiumGbp: money('monthly_premium_gbp'),
+  startDate: timestamp('start_date', { withTimezone: false, mode: 'date' }),
+  renewalDate: timestamp('renewal_date', { withTimezone: false, mode: 'date' }),
+  beneficiary: text('beneficiary'),
+  notes: text('notes'),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userKindIdx: index('insurance_policies_user_kind_idx').on(t.userId, t.kind),
+}));
+
+export const feeSchedules = pgTable('fee_schedules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: userIdRef(),
+  accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'cascade' }),
+  instrumentId: uuid('instrument_id').references(() => instruments.id, { onDelete: 'cascade' }),
+  kind: varchar('kind', { length: 40 }).notNull(),
+  rate: numeric('rate', { precision: 8, scale: 6 }).notNull(),
+  capGbp: money('cap_gbp'),
+  appliesTo: varchar('applies_to', { length: 40 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userAccountIdx: index('fee_schedules_user_account_idx').on(t.userId, t.accountId),
+}));
 
 export const businessMetrics = pgTable('business_metrics', {
   id: uuid('id').primaryKey().defaultRandom(),

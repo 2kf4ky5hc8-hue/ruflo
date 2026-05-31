@@ -26,7 +26,8 @@ const EXPECTED_TABLES = [
   'categories', 'category_rules', 'transactions',
   'instruments', 'holdings', 'lots', 'corporate_actions', 'prices', 'fundamentals',
   'isa_years', 'isa_deposits',
-  'businesses', 'business_metrics',
+  'businesses', 'business_metrics', 'business_obligations',
+  'debt_items', 'insurance_policies', 'fee_schedules',
   'risk_profiles', 'risk_breaches', 'allocation_rules', 'spare_cash_events',
   'opportunities', 'research_notes', 'proposed_actions', 'goals', 'reports', 'agent_runs',
 ];
@@ -101,16 +102,17 @@ async function main() {
     return 'aggressive allocation is active';
   });
 
-  await check('UK ISA year seeded', async () => {
+  await check('current UK ISA year seeded (2026/27)', async () => {
     const rows = await sql<{ tax_year: number; allowance: string; remaining: string }[]>`
       SELECT tax_year, allowance::text, remaining::text FROM isa_years
        ORDER BY tax_year DESC LIMIT 1
     `;
     if (!rows.length) throw new Error('no isa_years row');
     const r = rows[0]!;
+    if (r.tax_year !== 2026) throw new Error(`active tax year is ${r.tax_year}, expected 2026 (2026/27)`);
     if (Number(r.allowance) !== 20000) throw new Error(`ISA allowance is ${r.allowance}, expected 20000`);
     if (Number(r.remaining) !== 20000) throw new Error(`ISA remaining is ${r.remaining}, expected 20000`);
-    return `tax_year=${r.tax_year}  allowance=£${Number(r.allowance).toFixed(0)}  remaining=£${Number(r.remaining).toFixed(0)}`;
+    return `tax_year=${r.tax_year}/${(r.tax_year + 1).toString().slice(2)}  allowance=£${Number(r.allowance).toFixed(0)}  remaining=£${Number(r.remaining).toFixed(0)}`;
   });
 
   await check('institutions seeded (UK banks + brokers)', async () => {

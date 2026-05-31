@@ -23,7 +23,7 @@ const portfolio: PortfolioState = {
   existingPositionGbp: 0,
   speculativeExposureGbp: 0,
   cryptoExposureGbp: 0,
-  cashBufferGbp: 10_000,
+  cashBufferGbp: 14_000,    // above the 6-month floor of 12,000
   monthlyExpensesGbp: 2_000,
   isaRemainingGbp: 4_400,
 };

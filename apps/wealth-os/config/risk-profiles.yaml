@@ -1,14 +1,27 @@
 # Default risk-profile presets seeded into risk_profiles per user.
 # All `*_pct` are decimal fractions: 0.08 = 8%.
+#
+# Updated after external review (2026-05) — caps are now:
+#   * Portfolio-size aware: tighter caps while portfolio < small_portfolio_threshold
+#   * Crypto conditional on emergency fund being healthy and no toxic debt
+#   * Cash floor recommendations are higher for irregular-income profiles
+#   * Business-owner reserve gate added (blocks risk-up while business
+#     obligations exceed business cash)
 
-version: "2026-05-16"
+version: "2026-05-31"
+
+# Portfolio below this size uses the tighter `small_portfolio_*` caps.
+small_portfolio_threshold_gbp: 25000
 
 profiles:
 
   conservative:
     name: conservative
     max_single_position_pct: 0.05
-    max_speculative_pct: 0.05
+    max_single_position_small_portfolio_pct: 0.03
+    new_instrument_size_cap_pct: 0.02
+    max_speculative_pct: 0.03
+    max_speculative_until_buffer_healthy_pct: 0.00
     max_sector_pct: 0.25
     max_country_pct: 0.40
     max_currency_pct: 0.40
@@ -18,18 +31,23 @@ profiles:
     leverage_allowed: false
     options_allowed: false
     crypto_cap_pct: 0.00
+    crypto_requires_buffer: true
+    crypto_requires_no_toxic_debt: true
     cash_floor_months: 6
+    business_reserve_floor_months: 3
     cooling_off_minutes: 60
     sleep_mode_start: "22:00"
     sleep_mode_end:   "07:00"
-    new_instrument_size_cap_pct: 0.02
     liquidity_min_adv_gbp: 1000000
     paper_trade_days: 30
 
   balanced:
     name: balanced
     max_single_position_pct: 0.08
-    max_speculative_pct: 0.10
+    max_single_position_small_portfolio_pct: 0.05
+    new_instrument_size_cap_pct: 0.03
+    max_speculative_pct: 0.12
+    max_speculative_until_buffer_healthy_pct: 0.05
     max_sector_pct: 0.30
     max_country_pct: 0.55
     max_currency_pct: 0.60
@@ -39,32 +57,39 @@ profiles:
     leverage_allowed: false
     options_allowed: false
     crypto_cap_pct: 0.02
-    cash_floor_months: 3
+    crypto_requires_buffer: true
+    crypto_requires_no_toxic_debt: true
+    cash_floor_months: 4
+    business_reserve_floor_months: 3
     cooling_off_minutes: 30
     sleep_mode_start: "23:00"
     sleep_mode_end:   "06:00"
-    new_instrument_size_cap_pct: 0.04
     liquidity_min_adv_gbp: 500000
     paper_trade_days: 14
 
   aggressive:
     name: aggressive
-    max_single_position_pct: 0.12
-    max_speculative_pct: 0.20
+    max_single_position_pct: 0.10
+    max_single_position_small_portfolio_pct: 0.05
+    new_instrument_size_cap_pct: 0.04
+    max_speculative_pct: 0.15
+    max_speculative_until_buffer_healthy_pct: 0.05
     max_sector_pct: 0.40
     max_country_pct: 0.70
     max_currency_pct: 0.80
     max_daily_loss_pct: 0.05
     max_weekly_loss_pct: 0.10
     max_monthly_loss_pct: 0.18
-    leverage_allowed: false    # still false; gated behind High-Risk Unlock
-    options_allowed: false     # still false; gated behind High-Risk Unlock
-    crypto_cap_pct: 0.05
-    cash_floor_months: 2
+    leverage_allowed: false
+    options_allowed: false
+    crypto_cap_pct: 0.03
+    crypto_requires_buffer: true
+    crypto_requires_no_toxic_debt: true
+    cash_floor_months: 6                    # business-owner irregular income
+    business_reserve_floor_months: 3
     cooling_off_minutes: 15
     sleep_mode_start: "23:30"
     sleep_mode_end:   "06:00"
-    new_instrument_size_cap_pct: 0.06
     liquidity_min_adv_gbp: 100000
     paper_trade_days: 7
 
@@ -82,29 +107,73 @@ hard_rules:
     description: "No live actions 22:00-07:00 UK without explicit out-of-hours token."
   - id: high_risk_phrase_required
     description: "High-Risk Unlock requires typing 'I accept the risk of total loss'."
+  - id: no_autonomous_execution
+    description: "System never places live trades on the user's behalf. Assisted-draft only."
 
+# Toxic-debt threshold: any debt above this APR blocks higher-risk allocation.
+toxic_debt_apr_threshold_pct: 0.06
+
+# Default allocation is now a *waterfall*, not a fixed split. The first level
+# that isn't healthy claims all spare cash that month; sleeves below get
+# nothing until the level above is satisfied.
+#
+# Levels in order. Each level has a target and a `claim` rule.
+allocation_waterfall:
+  - id: tax_and_obligations
+    description: "VAT, PAYE, corporation tax, payroll, rent, supplier commitments."
+    claim: "until_business_obligations_reserved"
+  - id: personal_cash_floor
+    description: "Personal emergency fund up to cash_floor_months × monthly expenses."
+    claim: "until_personal_buffer_at_floor"
+  - id: high_interest_debt
+    description: "Any debt above toxic_debt_apr_threshold_pct."
+    claim: "until_toxic_debt_cleared"
+  - id: isa_core
+    description: "Diversified global core into ISA wrapper, up to remaining allowance."
+    claim: "monthly_target_then_overflow_to_next"
+    monthly_target_share_of_spare: 0.50
+  - id: business_reinvestment
+    description: "Marketing, staff, systems, working capital with clear expected ROI."
+    claim: "monthly_target_then_overflow_to_next"
+    monthly_target_share_of_spare: 0.20
+  - id: education
+    description: "Skills/courses with payback < 24 months."
+    claim: "monthly_target_then_overflow_to_next"
+    monthly_target_share_of_spare: 0.05
+  - id: higher_risk_satellite
+    description: "Single-stock / thematic / EM tilts. Only after everything above is healthy."
+    claim: "monthly_target_then_overflow_to_next"
+    monthly_target_share_of_spare: 0.20
+    requires_all_above_healthy: true
+  - id: opportunity_fund
+    description: "Optional sleeve for the opportunity scanner."
+    claim: "remainder"
+    requires_all_above_healthy: true
+
+# Legacy fixed split — kept so the schema/UI doesn't break, but the waterfall
+# above is what the allocation engine consults from this commit forward.
 allocation_presets:
   conservative:
     emergency_fund: 0.40
     isa: 0.30
-    higher_risk: 0.05
-    debt: 0.15
+    higher_risk: 0.00
+    debt: 0.20
     business_reinvest: 0.05
     education: 0.03
     opportunity: 0.02
   balanced:
     emergency_fund: 0.20
+    isa: 0.45
+    higher_risk: 0.05
+    debt: 0.15
+    business_reinvest: 0.10
+    education: 0.03
+    opportunity: 0.02
+  aggressive:
+    emergency_fund: 0.15
     isa: 0.40
     higher_risk: 0.10
     debt: 0.10
-    business_reinvest: 0.10
-    education: 0.05
-    opportunity: 0.05
-  aggressive:
-    emergency_fund: 0.10
-    isa: 0.35
-    higher_risk: 0.20
-    debt: 0.05
     business_reinvest: 0.20
-    education: 0.05
-    opportunity: 0.05
+    education: 0.03
+    opportunity: 0.02
