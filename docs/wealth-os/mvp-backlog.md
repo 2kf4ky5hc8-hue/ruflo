@@ -239,6 +239,149 @@ sense for *this* user *this* week.
 
 ---
 
+## Epics added after external review (2026-05-31)
+
+The external review (`docs/wealth-os/handover.md`, reviewer reply
+captured in chat) reshaped scope. Eight new epics, in priority order.
+
+### Epic 13 — Default benchmark plan  (foundation for everything else)
+
+Before any opportunity scanner: define the disciplined boring default
+plan ("ISA into global tracker, gilts, cash, debt paydown, business
+reserve"). Every proposal must explicitly beat or improve this baseline.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| BM-1301 | Default-plan service: pure function over snapshot → markdown + projected return. | 5 | Used by playbook + every opportunity. |
+| BM-1302 | "Would the default plan be better?" comparator. | 3 | Returns delta in projected real return at the user's horizon. |
+| BM-1303 | Wire comparator into `submitProposedAction`: every proposal carries default-plan delta. | 3 | Stored on the row; UI surfaces it. |
+
+**Epic total: 11 pts**
+
+### Epic 14 — Paper portfolio + decision journal  (review §9)
+
+Before any read-only broker integration: a paper portfolio surface that
+marks every approved proposal to simulated execution price, tracks
+mark-to-market vs the default-plan baseline, surfaces 30/90/180/365-day
+outcomes. Closes the learning loop without ever touching real execution.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| PP-1401 | `paper_positions` table; `paper_fills` table. | 2 | Migration. |
+| PP-1402 | Paper-fill simulator: takes proposal + same-day close price → fill record. | 3 | Includes a fees model. |
+| PP-1403 | Daily mark-to-market job (uses `prices`); writes `paper_positions.unrealised_pnl`. | 3 | |
+| PP-1404 | Decision-journal page: approved proposal → reason codes, mark-to-market, default-plan delta, 30/90/180/365-day review. | 5 | |
+| PP-1405 | "What would have happened if I ignored this?" view. | 3 | |
+
+**Epic total: 16 pts**
+
+### Epic 15 — Business cashflow engine  (review §10.2)
+
+The "do not extract cash that's owed to HMRC" guard. Uses the new
+`business_obligations` table.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| BC-1501 | Business obligations UI: add / edit / mark paid; recurring auto-generation. | 5 | |
+| BC-1502 | Reserve forecast: rolling 90-day projection of business cash less obligations. | 3 | Surfaced on dashboard. |
+| BC-1503 | Xero / FreeAgent read connection (OAuth). | 5 | Read-only. Behind the same `Provider` interface as Open Banking. |
+| BC-1504 | Wire `businessCashGbp` + `businessObligationsDue90dGbp` into `FinanceSnapshot` for the evaluator. | 2 | |
+
+**Epic total: 15 pts**
+
+### Epic 16 — Debt triage  (review §10.3)
+
+APR-aware. The `debt_items` table is in; this epic adds the UI and the
+"do this debt before this investment" comparator.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| DT-1601 | Debt items UI: add / edit / mark cleared. | 3 | |
+| DT-1602 | Debt-vs-invest comparator: after-tax marginal hurdle vs each debt APR. | 3 | |
+| DT-1603 | Toxic-debt warning on dashboard. | 2 | Driven by `risk_profiles.crypto_requires_no_toxic_debt`. |
+| DT-1604 | Wire `highestDebtAprPct` into `FinanceSnapshot`. | 1 | |
+
+**Epic total: 9 pts**
+
+### Epic 17 — Fee drag engine  (review §10.4)
+
+Make the cost layer visible. Uses the new `fee_schedules` table.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| FE-1701 | Fee schedule library: seed with current public fees for HL, AJ Bell, Vanguard UK, T212, Freetrade, InvestEngine, Fidelity UK. | 3 | YAML, versioned. Verified against each provider's published page. |
+| FE-1702 | Fee-impact calculator on the playbook ISA projection: shows gross vs net of platform + OCF + dealing. | 3 | |
+| FE-1703 | "Switch broker" suggestion when annual fee drag exceeds a threshold for the user's pattern. | 3 | |
+
+**Epic total: 9 pts**
+
+### Epic 18 — Behavioural risk system  (review §10.5)
+
+Stops the user doing daft things on bad days.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| BE-1801 | Late-night risk-up detection: any proposal kind=trade between 22:00 and 07:00 UK auto-snoozes until 09:00. | 2 | Extends sleep window from K-706. |
+| BE-1802 | Repeated High-Risk Unlock attempts → 24-hour cool-off. | 2 | |
+| BE-1803 | "Selling after drawdown" pattern detector: warns before confirming. | 3 | |
+| BE-1804 | "Chasing winners" detector: position-add after recent strong run. | 3 | |
+| BE-1805 | "Averaging down into broken thesis" detector: position-add after thesis-status downgrade. | 3 | |
+
+**Epic total: 13 pts**
+
+### Epic 19 — Data quality layer  (review §10.6)
+
+The new `reconciliation_status`, `last_verified_at`, `confidence_score`
+columns exist; this epic uses them.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| DQ-1901 | Reconciliation UI: list of un-reconciled transactions; one-tap confirm. | 5 | |
+| DQ-1902 | Stale-data badge on every dashboard number: surfaces `last_verified_at`. | 3 | |
+| DQ-1903 | Source-of-truth picker on holdings: manual override > broker CSV > price feed. | 3 | |
+| DQ-1904 | Confidence-weighted aggregation in `loadSnapshot` — low-confidence balances flagged. | 3 | |
+
+**Epic total: 14 pts**
+
+### Epic 20 — Protection / insurance tracker  (review §10.7)
+
+The new `insurance_policies` table; this epic adds the UI + the renewal
+reminders + the "what's missing" gap analysis.
+
+| ID    | Story | Pts | Notes |
+|-------|-------|-----|-------|
+| PR-2001 | Insurance UI: add / edit / mark lapsed; renewal reminders. | 5 | |
+| PR-2002 | Gap analysis: identifies missing cover (income protection if business owner, life if dependants, etc.). | 3 | Rule-based, deterministic. |
+| PR-2003 | Will + LPA tracking with renewal nudges. | 2 | |
+
+**Epic total: 10 pts**
+
+---
+
+## Explicitly NOT in scope
+
+These were called out in the review (§8) and reaffirmed by the user
+on 2026-05-31:
+
+- **Autonomous trade execution.** The system never places live trades.
+  Default mode is recommend → human approves → human submits. Even
+  Assisted Live mode (much later, after legal review) only drafts a
+  pre-filled ticket the user submits with one click.
+- **Personal recommendations under COBS.** No "buy/sell this named
+  instrument tailored to you". The system surfaces options against the
+  default plan with bear cases populated; the user decides.
+- **Pension / SIPP / LISA recommendations as advice.** Routed to a
+  "speak to an FCA-authorised adviser" reminder.
+- **Multi-user.** Single-user, single account holder's funds only.
+- **Tax evasion.** Tax *efficiency* via legitimate wrappers only.
+- **Intraday TA as a signal.** No RSI / MACD / stochastic / Bollinger /
+  Fibonacci / golden-cross. Long-horizon momentum may surface as a
+  *portfolio-level* tilt signal but never a single-name buy trigger.
+- **Crypto exposure above caps.** Hard-gated by `cryptoCapPct` plus
+  cash-buffer and toxic-debt preconditions.
+
+---
+
 ## Totals & critical path
 
 | Epic                                | Pts |
@@ -256,12 +399,26 @@ sense for *this* user *this* week.
 | 10 Weekly Wealth Review             | 13  |
 | 11 Quality & launch readiness       | 18  |
 | 12 Wealth Coach module              | 29  |
-| **MVP total**                       | **266** |
+| 13 Default benchmark plan           | 11  |
+| 14 Paper portfolio + decision journal | 16 |
+| 15 Business cashflow engine         | 15  |
+| 16 Debt triage                      |  9  |
+| 17 Fee drag engine                  |  9  |
+| 18 Behavioural risk                 | 13  |
+| 19 Data quality                     | 14  |
+| 20 Protection / insurance           | 10  |
+| **MVP total**                       | **363** |
 
-At 4–6 pts per focused day (solo dev, real life), MVP lands in **9–11 weeks** with
-the Wealth Coach module included.
+At 4–6 pts per focused day (solo dev, real life), the post-review MVP
+lands in **13–16 weeks**. Foundations (Epics 0/7/12 done so far) gave
+the disciplined spine; the new epics turn it into a wealth-owner OS
+instead of a stock-research terminal.
 
-Critical path: F-001 → F-005 → I-101/I-105 → C-201 → D-301 → A-401 → K-701 → P-901 → W-1001 → WC-1201/WC-1203.
+Critical path (post-review):
+F-001 → F-005 → WC-1201 → K-701/K-702 → BM-1301 (default plan) →
+BC-1501..BC-1504 (business cashflow) → DT-1601..DT-1604 (debt) →
+PP-1401..PP-1404 (paper portfolio) → I-101/I-105 (real-data ingest) →
+DQ-1901..DQ-1904 (reconcile) → WC-1203 (next-3-actions) → W-1001 (weekly review).
 
 Cut lines if time runs short, in order:
 1. C-202 (LLM categoriser) — fall back to rules + manual.
@@ -274,13 +431,14 @@ Cut lines if time runs short, in order:
 
 | ID    | Story | Verified by |
 |-------|-------|-------------|
-| F-001 | Migration applies cleanly (30 tables incl. recovery_codes). | `pnpm db:migrate` + `pnpm db:check` |
+| F-001 | Migrations 0001/0002/0003 apply cleanly (34 tables incl. business_obligations, debt_items, insurance_policies, fee_schedules, recovery_codes). | `pnpm db:migrate` + `pnpm db:check` |
 | F-002 | Drizzle ORM connects, all expected tables present, audit_events writable. | `pnpm db:check` (11/11 green) |
-| F-003 | Seed loads aggressive profile, allocation, ISA year, categories, institutions. | `pnpm db:seed` + `pnpm db:check` |
+| F-003 | Seed loads aggressive profile (post-review tighter caps), allocation, ISA year **2026/27**, categories, institutions. | `pnpm db:seed` + `pnpm db:check` |
 | F-004 | Next.js 15 App Router + Tailwind shell with chrome (nav, sign-out, footer). | `pnpm build` (13 routes) |
 | F-005 | Auth.js + Credentials (email/password) + TOTP 2FA + recovery codes + first-run setup. | curl-driven sign-in: 302 → session JSON → middleware-protected routes |
-| K-701 | Deterministic risk evaluator (24 tests). | `pnpm test` |
-| K-702 | `submitProposedAction` wires evaluator into insert path; blocks never written; observer mode honoured (5 tests). | `pnpm test` |
-| K-706 | Sleep-mode rule baked into evaluator (UK timezone, DST-aware, midnight wrap). | Test: "warns on a buy issued during the UK sleep window". |
-| WC-1201 | Four-step onboarding wizard saving to canonical tables. | `/onboarding` → `/onboarding/position` → `/onboarding/cashflow` → `/onboarding/goals` |
+| K-701 | Deterministic risk evaluator. | `pnpm test` |
+| K-702 | `submitProposedAction` wires evaluator into insert path; blocks never written; observer mode honoured. | `pnpm test` |
+| K-706 | Sleep-mode rule baked into evaluator (UK timezone, DST-aware, midnight wrap). | `pnpm test` |
+| K-RV1 | Post-review caps: portfolio-size aware single-position cap, speculative-until-buffer-healthy, crypto-requires-buffer, crypto-requires-no-toxic-debt, business-obligations-unpaid, business-reserve-floor. | `pnpm test` (50/50) |
+| WC-1201 | Four-step onboarding wizard saving to canonical tables. | `/onboarding` → `/position` → `/cashflow` → `/goals` |
 | WC-1202 | Deterministic playbook generator (markdown + ISA projection table). | `/playbook` renders the most recent `reports.kind='playbook'`. |
