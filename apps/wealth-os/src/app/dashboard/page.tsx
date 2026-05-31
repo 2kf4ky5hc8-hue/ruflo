@@ -122,6 +122,59 @@ export default async function Dashboard() {
           </div>
         </div>
       </section>
+
+      <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="card">
+          <div className="h3">Business reserve</div>
+          {snap.business.obligationsDue90dGbp > 0 || snap.business.cashGbp > 0 ? (
+            <>
+              <div className={`mt-2 text-lg font-medium ${
+                snap.business.cashGbp >= snap.business.obligationsDue90dGbp ? 'text-ok' : 'text-bad'
+              }`}>
+                {gbp(snap.business.cashGbp)} cash · {gbp(snap.business.obligationsDue90dGbp)} due 90d
+              </div>
+              <div className="mt-1 subtle">
+                {snap.business.cashGbp >= snap.business.obligationsDue90dGbp
+                  ? 'Obligations covered.'
+                  : 'Obligations exceed cash — personal risk-up is blocked.'}
+              </div>
+            </>
+          ) : (
+            <div className="mt-2 subtle"><a className="text-accent underline" href="/business">Add business obligations →</a></div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="h3">Debt</div>
+          {snap.debtGbp > 0 ? (
+            <>
+              <div className="mt-2 text-lg font-medium">{gbp(snap.debtGbp)} total</div>
+              <div className={`mt-1 text-sm ${snap.toxicDebtCount > 0 ? 'text-bad' : 'text-ok'}`}>
+                {snap.toxicDebtCount > 0
+                  ? `${snap.toxicDebtCount} toxic (>6% APR) — gating crypto + higher-risk.`
+                  : 'No high-rate debt.'}
+              </div>
+            </>
+          ) : (
+            <div className="mt-2 subtle"><a className="text-accent underline" href="/debt">Add debts →</a></div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="h3">Protection</div>
+          {snap.insurance.activePolicies > 0 ? (
+            <>
+              <div className="mt-2 text-lg font-medium">{snap.insurance.activePolicies} active</div>
+              <div className="mt-1 subtle">
+                {snap.insurance.hasIncomeProtection ? 'Income protection ✓' : 'No income protection'}
+                {snap.insurance.hasWill ? ' · Will ✓' : ' · No will'}
+              </div>
+            </>
+          ) : (
+            <div className="mt-2 subtle"><a className="text-accent underline" href="/protection">Add cover →</a></div>
+          )}
+        </div>
+      </section>
     </AppShell>
   );
 }

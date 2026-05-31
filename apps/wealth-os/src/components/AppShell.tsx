@@ -8,9 +8,12 @@ async function signOutAction() {
 }
 
 const NAV: Array<{ href: string; label: string }> = [
-  { href: '/dashboard',     label: 'Dashboard'    },
-  { href: '/onboarding',    label: 'Onboarding'   },
-  { href: '/approvals',     label: 'Approvals'    },
+  { href: '/dashboard',  label: 'Dashboard'  },
+  { href: '/playbook',   label: 'Playbook'   },
+  { href: '/business',   label: 'Business'   },
+  { href: '/debt',       label: 'Debt'       },
+  { href: '/protection', label: 'Protection' },
+  { href: '/approvals',  label: 'Approvals'  },
 ];
 
 export function AppShell({ children, current }: { children: ReactNode; current: string }) {

@@ -282,10 +282,10 @@ The "do not extract cash that's owed to HMRC" guard. Uses the new
 
 | ID    | Story | Pts | Notes |
 |-------|-------|-----|-------|
-| BC-1501 | Business obligations UI: add / edit / mark paid; recurring auto-generation. | 5 | |
-| BC-1502 | Reserve forecast: rolling 90-day projection of business cash less obligations. | 3 | Surfaced on dashboard. |
-| BC-1503 | Xero / FreeAgent read connection (OAuth). | 5 | Read-only. Behind the same `Provider` interface as Open Banking. |
-| BC-1504 | Wire `businessCashGbp` + `businessObligationsDue90dGbp` into `FinanceSnapshot` for the evaluator. | 2 | |
+| BC-1501 | Business obligations UI: add / edit / mark paid; recurring auto-generation. | 5 ✅ | `/business` — add VAT/PAYE/CT/payroll/rent/supplier, mark paid, delete. |
+| BC-1502 | Reserve forecast: rolling 90-day projection of business cash less obligations. | 3 ✅ | Dashboard "Business reserve" card + `/business` runway. |
+| BC-1503 | Xero / FreeAgent read connection (OAuth). | 5 | Read-only. Behind the same `Provider` interface as Open Banking. Deferred. |
+| BC-1504 | Wire `businessCashGbp` + `businessObligationsDue90dGbp` into `FinanceSnapshot` for the evaluator. | 2 ✅ | `loadSnapshot` + `toPortfolioState`. Proven live: obligations>cash → `business_obligations_unpaid` block. |
 
 **Epic total: 15 pts**
 
@@ -296,10 +296,10 @@ APR-aware. The `debt_items` table is in; this epic adds the UI and the
 
 | ID    | Story | Pts | Notes |
 |-------|-------|-----|-------|
-| DT-1601 | Debt items UI: add / edit / mark cleared. | 3 | |
-| DT-1602 | Debt-vs-invest comparator: after-tax marginal hurdle vs each debt APR. | 3 | |
-| DT-1603 | Toxic-debt warning on dashboard. | 2 | Driven by `risk_profiles.crypto_requires_no_toxic_debt`. |
-| DT-1604 | Wire `highestDebtAprPct` into `FinanceSnapshot`. | 1 | |
+| DT-1601 | Debt items UI: add / edit / mark cleared. | 3 ✅ | `/debt` — add per-debt with APR, balance, kind, secured, delete. |
+| DT-1602 | Debt-vs-invest comparator: after-tax marginal hurdle vs each debt APR. | 3 ✅ | `src/services/debt-advice.ts` (pure, 6 tests). Surfaced on `/debt` with verdict per debt. |
+| DT-1603 | Toxic-debt warning on dashboard. | 2 ✅ | Dashboard "Debt" card shows toxic count; gates crypto + higher-risk. |
+| DT-1604 | Wire `highestDebtAprPct` into `FinanceSnapshot`. | 1 ✅ | `loadSnapshot`. Proven live: 22% card → `crypto_requires_no_toxic_debt` block. |
 
 **Epic total: 9 pts**
 
@@ -350,9 +350,9 @@ reminders + the "what's missing" gap analysis.
 
 | ID    | Story | Pts | Notes |
 |-------|-------|-----|-------|
-| PR-2001 | Insurance UI: add / edit / mark lapsed; renewal reminders. | 5 | |
-| PR-2002 | Gap analysis: identifies missing cover (income protection if business owner, life if dependants, etc.). | 3 | Rule-based, deterministic. |
-| PR-2003 | Will + LPA tracking with renewal nudges. | 2 | |
+| PR-2001 | Insurance UI: add / edit / mark lapsed; renewal reminders. | 5 ✅ | `/protection` — add policy, mark lapsed. Renewal-date reminders are a follow-up. |
+| PR-2002 | Gap analysis: identifies missing cover (income protection if business owner, life if dependants, etc.). | 3 ✅ | `analyseProtectionGaps` (pure, 4 tests). Surfaced on `/protection`. |
+| PR-2003 | Will + LPA tracking with renewal nudges. | 2 ◐ | Will/LPA are insurance kinds (trackable now); renewal nudges deferred. |
 
 **Epic total: 10 pts**
 
