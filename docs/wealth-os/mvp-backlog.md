@@ -252,9 +252,9 @@ reserve"). Every proposal must explicitly beat or improve this baseline.
 
 | ID    | Story | Pts | Notes |
 |-------|-------|-----|-------|
-| BM-1301 | Default-plan service: pure function over snapshot → markdown + projected return. | 5 | Used by playbook + every opportunity. |
-| BM-1302 | "Would the default plan be better?" comparator. | 3 | Returns delta in projected real return at the user's horizon. |
-| BM-1303 | Wire comparator into `submitProposedAction`: every proposal carries default-plan delta. | 3 | Stored on the row; UI surfaces it. |
+| BM-1301 | Default-plan service: pure function over snapshot → waterfall + blended return. | 5 ✅ | `src/services/default-plan.ts` (10 tests). `/plan` page. |
+| BM-1302 | "Would the default plan be better?" comparator. | 3 ✅ | `compareToDefaultPlan` — default_is_better / roughly_equal / proposal_is_better. |
+| BM-1303 | Capture default-plan delta on paper positions; comparator available for `submitProposedAction`. | 3 ◐ | Paper positions store `benchmark_return_pct` + `default_plan_delta_pct` at open. Wiring into proposed_action insert is a small follow-up. |
 
 **Epic total: 11 pts**
 
@@ -267,11 +267,11 @@ outcomes. Closes the learning loop without ever touching real execution.
 
 | ID    | Story | Pts | Notes |
 |-------|-------|-----|-------|
-| PP-1401 | `paper_positions` table; `paper_fills` table. | 2 | Migration. |
-| PP-1402 | Paper-fill simulator: takes proposal + same-day close price → fill record. | 3 | Includes a fees model. |
-| PP-1403 | Daily mark-to-market job (uses `prices`); writes `paper_positions.unrealised_pnl`. | 3 | |
-| PP-1404 | Decision-journal page: approved proposal → reason codes, mark-to-market, default-plan delta, 30/90/180/365-day review. | 5 | |
-| PP-1405 | "What would have happened if I ignored this?" view. | 3 | |
+| PP-1401 | `paper_positions` table; `paper_fills` table. | 2 ✅ | Migration 0004. |
+| PP-1402 | Paper-fill simulator + fees model (stamp duty, FX spread, dealing fee). | 3 ✅ | `openPaperPosition` + `estimateFees` (tested). |
+| PP-1403 | Mark-to-market: `valuePosition` computes unrealised P&L, annualised return. | 3 ✅ | Pure + tested. Manual mark via UI; automatic price feed arrives with ingest epics. |
+| PP-1404 | Decision-journal page: reason codes, mark-to-market, default-plan delta, age. | 5 ✅ | `/paper`. Review-checkpoint columns (30/90/180/365d) in schema; reminders are a follow-up. |
+| PP-1405 | "vs default plan" view: every position marked against the benchmark captured at open. | 3 ✅ | `valuePosition.vsBenchmarkGbp`; surfaced per-position and in the header total. |
 
 **Epic total: 16 pts**
 
@@ -442,3 +442,6 @@ Cut lines if time runs short, in order:
 | K-RV1 | Post-review caps: portfolio-size aware single-position cap, speculative-until-buffer-healthy, crypto-requires-buffer, crypto-requires-no-toxic-debt, business-obligations-unpaid, business-reserve-floor. | `pnpm test` (50/50) |
 | WC-1201 | Four-step onboarding wizard saving to canonical tables. | `/onboarding` → `/position` → `/cashflow` → `/goals` |
 | WC-1202 | Deterministic playbook generator (markdown + ISA projection table). | `/playbook` renders the most recent `reports.kind='playbook'`. |
+| BC/DT/PR | Business obligations, debt triage, protection — UI + wired into evaluator. | `/business` `/debt` `/protection`; live gates proven. |
+| BM-1301/1302 | Default benchmark plan (waterfall + blended return) + comparator. | `/plan`; 10 tests. |
+| PP-1401..1405 | Paper portfolio + decision journal + vs-benchmark. | `/paper`; 10 tests; open/mark/close proven live. |

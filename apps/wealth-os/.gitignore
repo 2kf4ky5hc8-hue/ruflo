@@ -15,3 +15,6 @@ next-env.d.ts
 .DS_Store
 .vscode/
 .idea/
+
+# throwaway smoke scripts
+_*.mts

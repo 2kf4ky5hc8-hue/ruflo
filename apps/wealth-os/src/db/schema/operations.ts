@@ -186,3 +186,47 @@ export const agentRuns = pgTable('agent_runs', {
 }, (t) => ({
   userAgentTimeIdx: index('agent_runs_user_agent_time_idx').on(t.userId, t.agent, t.startedAt),
 }));
+
+export const paperPositions = pgTable('paper_positions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: userIdRef(),
+  proposedActionId: uuid('proposed_action_id').references(() => proposedActions.id, { onDelete: 'set null' }),
+  instrumentRef: varchar('instrument_ref', { length: 200 }).notNull(),
+  instrumentName: varchar('instrument_name', { length: 300 }),
+  assetClass: varchar('asset_class', { length: 30 }).notNull(),
+  wrapper: varchar('wrapper', { length: 40 }).notNull(),
+  quantity: numeric('quantity', { precision: 28, scale: 8 }).notNull(),
+  avgFillPrice: money('avg_fill_price').notNull(),
+  feesGbp: money('fees_gbp').notNull().default('0'),
+  openedAt: timestamp('opened_at', { withTimezone: true }).notNull().defaultNow(),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  status: varchar('status', { length: 20 }).notNull().default('open'),
+  reasonCode: varchar('reason_code', { length: 40 }).notNull().default('other'),
+  thesis: text('thesis'),
+  benchmarkReturnPct: pct('benchmark_return_pct'),
+  defaultPlanDeltaPct: pct('default_plan_delta_pct'),
+  markPrice: money('mark_price'),
+  markedAt: timestamp('marked_at', { withTimezone: true }),
+  realisedPnlGbp: money('realised_pnl_gbp'),
+  review30dDone: boolean('review_30d_done').notNull().default(false),
+  review90dDone: boolean('review_90d_done').notNull().default(false),
+  review180dDone: boolean('review_180d_done').notNull().default(false),
+  review365dDone: boolean('review_365d_done').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  userStatusIdx: index('paper_positions_user_status_idx').on(t.userId, t.status, t.openedAt),
+}));
+
+export const paperFills = pgTable('paper_fills', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  positionId: uuid('position_id').notNull().references(() => paperPositions.id, { onDelete: 'cascade' }),
+  proposedActionId: uuid('proposed_action_id').references(() => proposedActions.id, { onDelete: 'set null' }),
+  side: varchar('side', { length: 8 }).notNull(),
+  quantity: numeric('quantity', { precision: 28, scale: 8 }).notNull(),
+  price: money('price').notNull(),
+  feesGbp: money('fees_gbp').notNull().default('0'),
+  filledAt: timestamp('filled_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  positionIdx: index('paper_fills_position_idx').on(t.positionId, t.filledAt),
+}));

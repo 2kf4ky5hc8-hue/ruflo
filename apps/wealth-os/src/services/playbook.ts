@@ -145,7 +145,7 @@ function buildMarkdown(snap: FinanceSnapshot): string {
 
   lines.push(``);
   lines.push(`## Guardrails this month`);
-  lines.push(`- Single-position cap: ${pct(snap.activeRiskProfile?.cashFloorMonths === 2 ? 0.12 : 0.08)} of portfolio.`);
+  lines.push(`- Position, speculative and crypto caps are enforced deterministically on every proposed action (see your risk profile).`);
   lines.push(`- No leverage, no options, no spread bet (default mode).`);
   lines.push(`- Sleep window: no live execution outside daytime hours.`);
   lines.push(`- Every action above £1,000 will go to the Approval Centre.`);
