@@ -9,6 +9,7 @@ import { db } from '../lib/db';
 import { paperPositions, paperFills, auditEvents } from '../db/schema/index';
 import { loadSnapshot } from '../lib/finance';
 import { buildDefaultPlan } from './default-plan';
+import { getMarketDataProvider } from './market-data/index';
 
 // ── Fees model (PP-1402) ─────────────────────────────────────────────────
 // Deliberately simple and conservative. Real per-broker schedules arrive with
@@ -196,6 +197,32 @@ export async function listPositions(userId: string) {
   return db.select().from(paperPositions)
     .where(eq(paperPositions.userId, userId))
     .orderBy(desc(paperPositions.openedAt));
+}
+
+/** Mark every open paper position to the latest quote from the market-data
+ *  provider (stub or real), keyed on the position's instrumentRef. */
+export async function refreshPaperMarks(userId: string): Promise<{ marked: number; stub: boolean }> {
+  const open = await db.select().from(paperPositions)
+    .where(and(eq(paperPositions.userId, userId), eq(paperPositions.status, 'open')));
+  if (open.length === 0) return { marked: 0, stub: false };
+
+  const provider = getMarketDataProvider();
+  const symbols = [...new Set(open.map((p) => p.instrumentRef.toUpperCase()))];
+  const quotes = await provider.getQuotes(symbols);
+
+  let marked = 0;
+  let anyStub = false;
+  const now = new Date();
+  for (const p of open) {
+    const q = quotes.get(p.instrumentRef.toUpperCase());
+    if (!q) continue;
+    if (q.stub) anyStub = true;
+    await db.update(paperPositions)
+      .set({ markPrice: q.price.toString(), markedAt: now, updatedAt: now })
+      .where(eq(paperPositions.id, p.id));
+    marked++;
+  }
+  return { marked, stub: anyStub };
 }
 
 export async function deletePosition(userId: string, positionId: string) {

@@ -4,7 +4,7 @@ import { AppShell } from '@/components/AppShell';
 import { gbp } from '@/lib/finance';
 import {
   openPaperPosition, listPositions, markPosition, closePosition, deletePosition,
-  valuePosition, REASON_CODES, type ReasonCode,
+  valuePosition, refreshPaperMarks, REASON_CODES, type ReasonCode,
 } from '@/services/paper-portfolio';
 
 function num(v: FormDataEntryValue | null): number {
@@ -60,6 +60,14 @@ async function deleteAction(formData: FormData) {
   redirect('/paper');
 }
 
+async function refreshMarksAction() {
+  'use server';
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+  await refreshPaperMarks((session.user as { id: string }).id);
+  redirect('/paper');
+}
+
 const ASSET_CLASSES = ['developed_equity', 'emerging_equity', 'small_cap_equity', 'thematic_equity', 'reit', 'investment_grade_bond', 'gilt', 'commodity', 'crypto'];
 
 export default async function PaperPage() {
@@ -84,12 +92,17 @@ export default async function PaperPage() {
 
   return (
     <AppShell current="/paper">
-      <h1 className="h1">Paper portfolio</h1>
-      <p className="subtle mt-1 max-w-3xl">
-        Simulated only — nothing here touches a broker. Open paper positions, mark them
-        to market, and watch whether your picks beat the default plan. This is a decision
-        journal, not a game.
-      </p>
+      <div className="flex items-baseline justify-between">
+        <div>
+          <h1 className="h1">Paper portfolio</h1>
+          <p className="subtle mt-1 max-w-3xl">
+            Simulated only — nothing here touches a broker. Open paper positions, mark them
+            to market, and watch whether your picks beat the default plan. This is a decision
+            journal, not a game.
+          </p>
+        </div>
+        <form action={refreshMarksAction}><button className="btn btn-ghost" type="submit">Refresh marks</button></form>
+      </div>
 
       <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="card"><div className="h3">Open market value</div><div className="mt-2 text-2xl font-semibold">{gbp(totalMv)}</div></div>

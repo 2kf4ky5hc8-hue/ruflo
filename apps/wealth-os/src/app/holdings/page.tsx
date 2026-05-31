@@ -6,6 +6,7 @@ import { gbp } from '@/lib/finance';
 import {
   listAccounts, addHolding, listHoldings, deleteHolding,
 } from '@/services/ledger';
+import { refreshUserPrices, latestPrices, valueHolding } from '@/services/prices';
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '0').replace(/[, £]/g, ''));
@@ -46,12 +47,34 @@ async function deleteAction(formData: FormData) {
   redirect('/holdings');
 }
 
+async function refreshPricesAction() {
+  'use server';
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+  await refreshUserPrices((session.user as { id: string }).id);
+  redirect('/holdings');
+}
+
 export default async function HoldingsPage() {
   const session = await auth();
   if (!session?.user) redirect('/login');
   const userId = (session.user as { id: string }).id;
   const accs = (await listAccounts(userId)).filter((a) => ['isa', 'gia', 'sipp', 'crypto'].includes(a.type));
   const rows = await listHoldings(userId);
+
+  const priceMap = await latestPrices(rows.map((r) => r.holding.instrumentId));
+  const valued = rows.map((r) => {
+    const px = priceMap.get(r.holding.instrumentId);
+    const v = valueHolding({
+      quantity: Number(r.holding.quantity),
+      avgCostGbp: Number(r.holding.avgCost ?? 0),
+      marketPrice: px?.price ?? null,
+    });
+    return { ...r, v, px };
+  });
+  const totalMv = valued.reduce((acc, x) => acc + (x.v.marketValueGbp ?? x.v.bookValueGbp), 0);
+  const totalPnl = valued.reduce((acc, x) => acc + (x.v.unrealisedPnlGbp ?? 0), 0);
+  const anyStub = valued.some((x) => x.px?.source === 'stub');
 
   return (
     <AppShell current="/holdings">
@@ -60,8 +83,24 @@ export default async function HoldingsPage() {
           <h1 className="h1">Holdings</h1>
           <p className="subtle mt-1">Your real ISA / GIA / pension positions. Enter cost basis at purchase.</p>
         </div>
-        <Link className="btn btn-ghost" href="/accounts">← Accounts</Link>
+        <div className="flex gap-2">
+          <form action={refreshPricesAction}><button className="btn btn-ghost" type="submit">Refresh prices</button></form>
+          <Link className="btn btn-ghost" href="/accounts">← Accounts</Link>
+        </div>
       </div>
+
+      {rows.length > 0 && (
+        <section className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="card"><div className="h3">Market value</div><div className="mt-2 text-2xl font-semibold">{gbp(totalMv)}</div></div>
+          <div className="card"><div className="h3">Unrealised P&amp;L</div>
+            <div className={`mt-2 text-2xl font-semibold ${totalPnl >= 0 ? 'text-ok' : 'text-bad'}`}>{gbp(totalPnl)}</div>
+          </div>
+          <div className="card"><div className="h3">Pricing</div>
+            <div className="mt-2 text-sm">{anyStub ? 'Simulated (stub) prices' : 'Live prices'}</div>
+            <div className="mt-1 subtle">{anyStub ? 'Set MARKET_DATA_PROVIDER=fmp + API key for live quotes.' : 'From your configured provider.'}</div>
+          </div>
+        </section>
+      )}
 
       <section className="card mt-6">
         <div className="h2">Add a holding</div>
@@ -89,24 +128,30 @@ export default async function HoldingsPage() {
 
       <section className="mt-6">
         <div className="h2">Current holdings</div>
-        {rows.length === 0 ? (
+        {valued.length === 0 ? (
           <p className="subtle mt-2">No holdings recorded yet.</p>
         ) : (
           <div className="mt-3 space-y-1">
-            {rows.map(({ holding: h, instrument: ins, account }) => {
-              const bookValue = Number(h.quantity) * Number(h.avgCost ?? 0);
-              return (
-                <div key={h.id} className="card flex items-center gap-3 py-2">
-                  <span className="w-28 text-sm font-semibold">{ins.ticker ?? ins.isin ?? '—'}</span>
-                  <span className="flex-1 text-sm text-muted">{ins.name}</span>
-                  <span className="w-28 text-xs text-muted">{account?.name}</span>
-                  <span className="w-24 text-xs text-muted">{ins.assetClass.replace(/_/g, ' ')}</span>
-                  <span className="text-sm">{Number(h.quantity).toLocaleString('en-GB')} @ £{Number(h.avgCost ?? 0).toFixed(2)}</span>
-                  <span className="w-24 text-right text-sm font-semibold">{gbp(bookValue)}</span>
-                  <form action={deleteAction}><input type="hidden" name="id" value={h.id} /><button className="text-xs text-muted hover:text-bad">✕</button></form>
-                </div>
-              );
-            })}
+            {valued.map(({ holding: h, instrument: ins, account, v, px }) => (
+              <div key={h.id} className="card flex items-center gap-3 py-2">
+                <span className="w-24 text-sm font-semibold">{ins.ticker ?? ins.isin ?? '—'}</span>
+                <span className="flex-1 text-sm text-muted">{ins.name}</span>
+                <span className="w-24 text-xs text-muted">{account?.name}</span>
+                <span className="text-sm">{Number(h.quantity).toLocaleString('en-GB')} @ £{Number(h.avgCost ?? 0).toFixed(2)}</span>
+                {px ? (
+                  <span className="w-24 text-right text-xs text-muted">mkt £{px.price.toFixed(2)}</span>
+                ) : (
+                  <span className="w-24 text-right text-xs text-muted">unpriced</span>
+                )}
+                <span className="w-24 text-right text-sm font-semibold">{gbp(v.marketValueGbp ?? v.bookValueGbp)}</span>
+                {v.unrealisedPnlGbp != null && (
+                  <span className={`w-24 text-right text-xs ${v.unrealisedPnlGbp >= 0 ? 'text-ok' : 'text-bad'}`}>
+                    {v.unrealisedPnlGbp >= 0 ? '+' : ''}{gbp(v.unrealisedPnlGbp)}
+                  </span>
+                )}
+                <form action={deleteAction}><input type="hidden" name="id" value={h.id} /><button className="text-xs text-muted hover:text-bad">✕</button></form>
+              </div>
+            ))}
           </div>
         )}
       </section>
