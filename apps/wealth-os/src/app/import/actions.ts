@@ -39,16 +39,16 @@ export async function previewImportAction(csvText: string): Promise<PreviewResul
 
 export async function commitImportAction(
   accountId: string, csvText: string,
-): Promise<{ ok: boolean; inserted: number; error?: string }> {
+): Promise<{ ok: boolean; inserted: number; skipped: number; error?: string }> {
   const session = await auth();
-  if (!session?.user) return { ok: false, inserted: 0, error: 'Not signed in.' };
+  if (!session?.user) return { ok: false, inserted: 0, skipped: 0, error: 'Not signed in.' };
   const userId = (session.user as { id: string }).id;
   try {
     const parsed = detectAndParse(csvText);
-    if (parsed.rows.length === 0) return { ok: false, inserted: 0, error: 'No rows to import.' };
+    if (parsed.rows.length === 0) return { ok: false, inserted: 0, skipped: 0, error: 'No rows to import.' };
     const res = await commitImportedRows(userId, accountId, parsed.rows);
-    return { ok: true, inserted: res.inserted };
+    return { ok: true, inserted: res.inserted, skipped: res.skipped };
   } catch (e) {
-    return { ok: false, inserted: 0, error: (e as Error).message };
+    return { ok: false, inserted: 0, skipped: 0, error: (e as Error).message };
   }
 }

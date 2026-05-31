@@ -15,7 +15,7 @@ export function ImportClient({ accounts }: { accounts: Account[] }) {
   const [csv, setCsv] = useState('');
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
   const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const [committed, setCommitted] = useState<{ inserted: number } | null>(null);
+  const [committed, setCommitted] = useState<{ inserted: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -42,7 +42,7 @@ export function ImportClient({ accounts }: { accounts: Account[] }) {
     start(async () => {
       const res = await commitImportAction(accountId, csv);
       if (res.ok) {
-        setCommitted({ inserted: res.inserted });
+        setCommitted({ inserted: res.inserted, skipped: res.skipped });
         setPreview(null);
         setCsv('');
         router.refresh();
@@ -77,7 +77,11 @@ export function ImportClient({ accounts }: { accounts: Account[] }) {
 
       {committed && (
         <div className="card border-ok/40 bg-ok/5">
-          <p className="text-sm text-ok">Imported {committed.inserted} transactions. They're marked un-reconciled — review them on the Accounts page.</p>
+          <p className="text-sm text-ok">
+            Imported {committed.inserted} transaction{committed.inserted === 1 ? '' : 's'}.
+            {committed.skipped > 0 && ` Skipped ${committed.skipped} duplicate${committed.skipped === 1 ? '' : 's'} already in this account.`}
+            {' '}They're marked un-reconciled — review them on the Accounts page.
+          </p>
         </div>
       )}
 

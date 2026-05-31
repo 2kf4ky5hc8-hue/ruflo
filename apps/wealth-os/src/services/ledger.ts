@@ -8,7 +8,7 @@ import { db } from '../lib/db';
 import {
   accounts, transactions, categories, instruments, holdings, auditEvents,
 } from '../db/schema/index';
-import type { ParsedRow } from './csv-import';
+import { rowKey, type ParsedRow } from './csv-import';
 
 export const ACCOUNT_TYPES = [
   'cash', 'isa', 'gia', 'sipp', 'business', 'mortgage', 'credit', 'debt', 'property', 'crypto',
@@ -114,22 +114,56 @@ export async function deleteTransaction(userId: string, txId: string) {
 
 export async function commitImportedRows(
   userId: string, accountId: string, rows: ParsedRow[],
-): Promise<{ inserted: number }> {
+): Promise<{ inserted: number; skipped: number }> {
   await assertAccountOwner(userId, accountId);
-  if (rows.length === 0) return { inserted: 0 };
-  await db.insert(transactions).values(rows.map((r) => ({
-    accountId,
-    postedAt: r.postedAt,
-    amount: r.amountGbp.toString(),
-    currency: 'GBP',
-    counterparty: r.counterparty ?? null,
-    descriptionRaw: r.description,
-    descriptionClean: r.description,
-    source: 'csv_import',
-    reconciliationStatus: 'unreconciled' as const,
-  })));
+  if (rows.length === 0) return { inserted: 0, skipped: 0 };
+
+  // I-108 — duplicate detection. Build the set of keys already in this
+  // account, then skip any incoming row that matches an existing transaction
+  // OR an earlier row in the same batch.
+  const existing = await db.select({
+    postedAt: transactions.postedAt,
+    amount: transactions.amount,
+    counterparty: transactions.counterparty,
+    descriptionClean: transactions.descriptionClean,
+  }).from(transactions).where(eq(transactions.accountId, accountId));
+
+  const seen = new Set<string>();
+  for (const t of existing) {
+    seen.add(rowKey(accountId, {
+      index: 0,
+      postedAt: new Date(t.postedAt),
+      amountGbp: Number(t.amount),
+      description: t.descriptionClean ?? '',
+      counterparty: t.counterparty ?? undefined,
+      raw: {},
+    }));
+  }
+
+  const toInsert: ParsedRow[] = [];
+  let skipped = 0;
+  for (const r of rows) {
+    const k = rowKey(accountId, r);
+    if (seen.has(k)) { skipped++; continue; }
+    seen.add(k);
+    toInsert.push(r);
+  }
+
+  if (toInsert.length > 0) {
+    await db.insert(transactions).values(toInsert.map((r) => ({
+      accountId,
+      postedAt: r.postedAt,
+      amount: r.amountGbp.toString(),
+      currency: 'GBP',
+      counterparty: r.counterparty ?? null,
+      descriptionRaw: r.description,
+      descriptionClean: r.description,
+      source: 'csv_import',
+      reconciliationStatus: 'unreconciled' as const,
+    })));
+  }
   await audit(userId, 'csv_import', 'account', accountId);
-  return { inserted: rows.length };
+  return { inserted: toInsert.length, skipped };
 }
 
 // ── Instruments + holdings (I-104) ───────────────────────────────────────
