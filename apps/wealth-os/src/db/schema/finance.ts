@@ -301,6 +301,7 @@ export const portfolioSnapshots = pgTable('portfolio_snapshots', {
   totalMvGbp: money('total_mv_gbp').notNull(),
   highWaterMarkGbp: money('high_water_mark_gbp').notNull(),
   drawdownPct: numeric('drawdown_pct', { precision: 6, scale: 4 }).notNull().default('0'),
+  drawdownGbp: money('drawdown_gbp').notNull().default('0'),
   source: varchar('source', { length: 40 }).notNull().default('manual'),
 }, (t) => ({
   userTsIdx: index('portfolio_snapshots_user_ts_idx').on(t.userId, t.ts),

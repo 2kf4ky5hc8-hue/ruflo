@@ -9,7 +9,8 @@ import {
   valuePortfolio, concentrationBreaches, tagExposure, computeRiskStatus,
   type PositionInput, type RiskBannerStatus,
 } from '@/services/portfolio-risk';
-import { takeSnapshot, currentDrawdown } from '@/services/portfolio-snapshots';
+import { takeSnapshot, currentDrawdown, snapshotHistory } from '@/services/portfolio-snapshots';
+import { Sparkline } from '@/components/Sparkline';
 import { db } from '@/lib/db';
 import { riskProfiles } from '@/db/schema/index';
 import { and, eq } from 'drizzle-orm';
@@ -66,6 +67,9 @@ export default async function RiskPage() {
   const exposures = tagExposure(valuation.positions);
 
   const dd = await currentDrawdown(userId, 90);
+  const history = await snapshotHistory(userId, 90);
+  const sparkSeries = history.map((h) => ({ ts: h.ts, value: h.totalMvGbp }));
+  const hwmSeries  = history.map((h) => ({ ts: h.ts, value: h.highWaterMarkGbp }));
   const cashFloor = (snap.activeRiskProfile?.cashFloorMonths ?? 3) * snap.monthlyExpensesGbp;
 
   const status = computeRiskStatus({
@@ -197,17 +201,72 @@ export default async function RiskPage() {
       </section>
 
       <section className="mt-6 card">
-        <div className="h2">Snapshot history (90 days)</div>
-        <p className="subtle mt-1">Each "Refresh &amp; snapshot" writes a row. The dashboard auto-snapshots once an hour on view.</p>
-        {!dd ? (
-          <p className="subtle mt-3">No snapshots yet — hit "Refresh &amp; snapshot".</p>
+        <div className="flex items-baseline justify-between">
+          <div>
+            <div className="h2">Snapshot history (90 days)</div>
+            <p className="subtle mt-1">
+              The daily-snapshot daemon writes one row per UK calendar day. The dashboard
+              also auto-snapshots once an hour on view, and the "Refresh &amp; snapshot"
+              button forces one now.
+            </p>
+          </div>
+          <span className="text-xs text-muted">{history.length} snapshot{history.length === 1 ? '' : 's'}</span>
+        </div>
+
+        {history.length === 0 ? (
+          <p className="subtle mt-3">No snapshots yet — hit "Refresh &amp; snapshot" or run <code>pnpm snapshot:run</code>.</p>
         ) : (
-          <p className="mt-3 text-sm">
-            High-water mark <span className="font-semibold">{gbp(dd.highWaterMarkGbp)}</span>,
-            current <span className="font-semibold">{gbp(dd.currentMvGbp)}</span>,
-            drawdown <span className="font-semibold">{(dd.drawdownPct * 100).toFixed(1)}%</span>
-            {' '}({dd.daysSinceHwm}d since HWM).
-          </p>
+          <>
+            <div className="mt-4">
+              <Sparkline
+                series={sparkSeries}
+                overlay={hwmSeries}
+                width={720}
+                height={120}
+                ariaLabel="Total portfolio market value over the last 90 days, with the high-water mark overlaid."
+              />
+            </div>
+
+            {dd && (
+              <p className="mt-3 text-sm">
+                High-water mark <span className="font-semibold">{gbp(dd.highWaterMarkGbp)}</span>,
+                current <span className="font-semibold">{gbp(dd.currentMvGbp)}</span>,
+                drawdown <span className="font-semibold">{(dd.drawdownPct * 100).toFixed(1)}%</span>
+                {' '}({dd.daysSinceHwm}d since HWM).
+              </p>
+            )}
+
+            <div className="mt-4 max-h-64 overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-muted">
+                  <tr>
+                    <th className="py-1">Date</th>
+                    <th>Total MV</th>
+                    <th>Cash</th>
+                    <th>Investable</th>
+                    <th>HWM</th>
+                    <th>Drawdown</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...history].reverse().slice(0, 30).map((h, i) => (
+                    <tr key={i} className="border-t border-line">
+                      <td className="py-1 text-xs text-muted">{new Date(h.ts).toLocaleDateString('en-GB')}</td>
+                      <td className="font-medium">{gbp(h.totalMvGbp)}</td>
+                      <td className="text-xs text-muted">{gbp(h.cashGbp)}</td>
+                      <td className="text-xs text-muted">{gbp(h.investableGbp)}</td>
+                      <td className="text-xs text-muted">{gbp(h.highWaterMarkGbp)}</td>
+                      <td className={`text-xs ${h.drawdownPct >= ddCaution ? 'text-warn' : 'text-muted'}`}>
+                        {(h.drawdownPct * 100).toFixed(1)}% · {gbp(h.drawdownGbp)}
+                      </td>
+                      <td className="text-xs text-muted">{h.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
     </AppShell>

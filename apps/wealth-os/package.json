@@ -22,7 +22,9 @@
     "db:studio":    "drizzle-kit studio",
     "typecheck":    "tsc --noEmit",
     "test":         "vitest run",
-    "test:watch":   "vitest"
+    "test:watch":   "vitest",
+    "snapshot:run":     "tsx scripts/snapshot-run.ts",
+    "snapshot:daemon":  "tsx scripts/snapshot-daemon.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
