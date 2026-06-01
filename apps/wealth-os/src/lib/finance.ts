@@ -216,6 +216,8 @@ export interface PositionContext {
   existingPositionGbp?: number;
   speculativeExposureGbp?: number;
   cryptoExposureGbp?: number;
+  /** Current peak-to-trough drawdown (0..1). Derived from portfolio_snapshots. */
+  portfolioDrawdownPct?: number;
 }
 
 export function toPortfolioState(
@@ -238,5 +240,6 @@ export function toPortfolioState(
     businessObligationsDue90dGbp: snap.business.obligationsDue90dGbp,
     businessMonthlyFixedGbp: snap.business.monthlyFixedGbp,
     highestDebtAprPct: snap.highestDebtAprPct,
+    portfolioDrawdownPct: position.portfolioDrawdownPct,
   };
 }

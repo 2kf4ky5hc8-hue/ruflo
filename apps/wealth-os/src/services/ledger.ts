@@ -250,6 +250,18 @@ export async function listHoldings(userId: string) {
   return rows.map((r) => ({ ...r, account: accById.get(r.holding.accountId) }));
 }
 
+export async function setHoldingTags(userId: string, holdingId: string, tags: string[]): Promise<void> {
+  const [h] = await db.select().from(holdings).where(eq(holdings.id, holdingId)).limit(1);
+  if (!h) throw new Error('Holding not found.');
+  await assertAccountOwner(userId, h.accountId);
+  // Normalise: trim, lowercase, dedupe, drop empties, cap at 8.
+  const clean = Array.from(new Set(
+    tags.map((t) => t.trim().toLowerCase()).filter((t) => t.length > 0 && t.length <= 40),
+  )).slice(0, 8);
+  await db.update(holdings).set({ tags: clean }).where(eq(holdings.id, holdingId));
+  await audit(userId, 'set_tags', 'holding', holdingId);
+}
+
 export async function deleteHolding(userId: string, holdingId: string) {
   const [h] = await db.select().from(holdings).where(eq(holdings.id, holdingId)).limit(1);
   if (!h) throw new Error('Holding not found.');

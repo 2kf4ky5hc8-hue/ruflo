@@ -30,7 +30,7 @@ const EXPECTED_TABLES = [
   'debt_items', 'insurance_policies', 'fee_schedules',
   'risk_profiles', 'risk_breaches', 'allocation_rules', 'spare_cash_events',
   'opportunities', 'research_notes', 'proposed_actions', 'goals', 'reports', 'agent_runs',
-  'paper_positions', 'paper_fills',
+  'paper_positions', 'paper_fills', 'portfolio_snapshots',
 ];
 
 const EXPECTED_USER_COLUMNS = [

@@ -9,6 +9,7 @@ async function signOutAction() {
 
 const NAV: Array<{ href: string; label: string }> = [
   { href: '/dashboard',  label: 'Dashboard'  },
+  { href: '/risk',       label: 'Risk'       },
   { href: '/accounts',   label: 'Accounts'   },
   { href: '/holdings',   label: 'Holdings'   },
   { href: '/plan',       label: 'Plan'       },

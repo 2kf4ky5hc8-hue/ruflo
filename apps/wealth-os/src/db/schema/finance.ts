@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   pgTable, uuid, varchar, text, timestamp, jsonb, numeric, boolean, integer,
   index, uniqueIndex,
@@ -125,6 +126,7 @@ export const holdings = pgTable('holdings', {
   reconciliationStatus: varchar('reconciliation_status', { length: 20 }).notNull().default('unreconciled'),
   lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
   confidenceScore: numeric('confidence_score', { precision: 5, scale: 4 }),
+  tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
 }, (t) => ({
   accountInstrUnique: uniqueIndex('holdings_account_instr_uq').on(t.accountId, t.instrumentId),
 }));
@@ -288,4 +290,18 @@ export const businessMetrics = pgTable('business_metrics', {
   salaryPaidYtd: money('salary_paid_ytd'),
 }, (t) => ({
   businessTimeIdx: index('biz_metrics_time_idx').on(t.businessId, t.asOf),
+}));
+
+export const portfolioSnapshots = pgTable('portfolio_snapshots', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: userIdRef(),
+  ts: timestamp('ts', { withTimezone: true }).notNull().defaultNow(),
+  cashGbp: money('cash_gbp').notNull(),
+  investableGbp: money('investable_gbp').notNull(),
+  totalMvGbp: money('total_mv_gbp').notNull(),
+  highWaterMarkGbp: money('high_water_mark_gbp').notNull(),
+  drawdownPct: numeric('drawdown_pct', { precision: 6, scale: 4 }).notNull().default('0'),
+  source: varchar('source', { length: 40 }).notNull().default('manual'),
+}, (t) => ({
+  userTsIdx: index('portfolio_snapshots_user_ts_idx').on(t.userId, t.ts),
 }));

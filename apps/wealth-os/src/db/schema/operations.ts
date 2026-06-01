@@ -29,6 +29,8 @@ export const riskProfiles = pgTable('risk_profiles', {
   cryptoRequiresNoToxicDebt: boolean('crypto_requires_no_toxic_debt').notNull().default(true),
   cashFloorMonths: numeric('cash_floor_months', { precision: 5, scale: 2 }).notNull(),
   businessReserveFloorMonths: numeric('business_reserve_floor_months', { precision: 5, scale: 2 }).notNull().default('3'),
+  drawdownCautionPct: pct('drawdown_caution_pct').notNull().default('0.10'),
+  drawdownBlockPct: pct('drawdown_block_pct').notNull().default('0.20'),
   coolingOffMinutes: integer('cooling_off_minutes').notNull(),
   sleepModeStart: varchar('sleep_mode_start', { length: 5 }).notNull(),
   sleepModeEnd: varchar('sleep_mode_end', { length: 5 }).notNull(),

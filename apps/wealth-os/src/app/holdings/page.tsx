@@ -4,9 +4,16 @@ import { auth } from '@/lib/auth';
 import { AppShell } from '@/components/AppShell';
 import { gbp } from '@/lib/finance';
 import {
-  listAccounts, addHolding, listHoldings, deleteHolding,
+  listAccounts, addHolding, listHoldings, deleteHolding, setHoldingTags,
 } from '@/services/ledger';
 import { refreshUserPrices, latestPrices, valueHolding } from '@/services/prices';
+
+const TAG_SUGGESTIONS = [
+  'etf', 'fund', 'stock', 'bond', 'gilt', 'cash', 'crypto', 'reit',
+  'defensive', 'balanced', 'speculative',
+  'growth', 'value', 'income', 'thematic',
+  'uk', 'us', 'europe', 'global', 'emerging',
+];
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '0').replace(/[, £]/g, ''));
@@ -52,6 +59,17 @@ async function refreshPricesAction() {
   const session = await auth();
   if (!session?.user) redirect('/login');
   await refreshUserPrices((session.user as { id: string }).id);
+  redirect('/holdings');
+}
+
+async function setTagsAction(formData: FormData) {
+  'use server';
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+  const id = String(formData.get('id'));
+  const raw = String(formData.get('tags') ?? '');
+  const tags = raw.split(/[,\s]+/).map((t) => t.trim()).filter(Boolean);
+  await setHoldingTags((session.user as { id: string }).id, id, tags);
   redirect('/holdings');
 }
 
@@ -131,30 +149,57 @@ export default async function HoldingsPage() {
         {valued.length === 0 ? (
           <p className="subtle mt-2">No holdings recorded yet.</p>
         ) : (
-          <div className="mt-3 space-y-1">
-            {valued.map(({ holding: h, instrument: ins, account, v, px }) => (
-              <div key={h.id} className="card flex items-center gap-3 py-2">
-                <span className="w-24 text-sm font-semibold">{ins.ticker ?? ins.isin ?? '—'}</span>
-                <span className="flex-1 text-sm text-muted">{ins.name}</span>
-                <span className="w-24 text-xs text-muted">{account?.name}</span>
-                <span className="text-sm">{Number(h.quantity).toLocaleString('en-GB')} @ £{Number(h.avgCost ?? 0).toFixed(2)}</span>
-                {px ? (
-                  <span className="w-24 text-right text-xs text-muted">mkt £{px.price.toFixed(2)}</span>
-                ) : (
-                  <span className="w-24 text-right text-xs text-muted">unpriced</span>
-                )}
-                <span className="w-24 text-right text-sm font-semibold">{gbp(v.marketValueGbp ?? v.bookValueGbp)}</span>
-                {v.unrealisedPnlGbp != null && (
-                  <span className={`w-24 text-right text-xs ${v.unrealisedPnlGbp >= 0 ? 'text-ok' : 'text-bad'}`}>
-                    {v.unrealisedPnlGbp >= 0 ? '+' : ''}{gbp(v.unrealisedPnlGbp)}
-                  </span>
-                )}
-                <form action={deleteAction}><input type="hidden" name="id" value={h.id} /><button className="text-xs text-muted hover:text-bad">✕</button></form>
-              </div>
-            ))}
+          <div className="mt-3 space-y-2">
+            {valued.map(({ holding: h, instrument: ins, account, v, px }) => {
+              const tagList = (h.tags as string[]) ?? [];
+              return (
+                <div key={h.id} className="card py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-24 text-sm font-semibold">{ins.ticker ?? ins.isin ?? '—'}</span>
+                    <span className="flex-1 text-sm text-muted">{ins.name}</span>
+                    <span className="w-24 text-xs text-muted">{account?.name}</span>
+                    <span className="text-sm">{Number(h.quantity).toLocaleString('en-GB')} @ £{Number(h.avgCost ?? 0).toFixed(2)}</span>
+                    {px ? (
+                      <span className="w-24 text-right text-xs text-muted">mkt £{px.price.toFixed(2)}</span>
+                    ) : (
+                      <span className="w-24 text-right text-xs text-muted">unpriced</span>
+                    )}
+                    <span className="w-24 text-right text-sm font-semibold">{gbp(v.marketValueGbp ?? v.bookValueGbp)}</span>
+                    {v.unrealisedPnlGbp != null && (
+                      <span className={`w-24 text-right text-xs ${v.unrealisedPnlGbp >= 0 ? 'text-ok' : 'text-bad'}`}>
+                        {v.unrealisedPnlGbp >= 0 ? '+' : ''}{gbp(v.unrealisedPnlGbp)}
+                      </span>
+                    )}
+                    <form action={deleteAction}><input type="hidden" name="id" value={h.id} /><button className="text-xs text-muted hover:text-bad">✕</button></form>
+                  </div>
+                  <form action={setTagsAction} className="mt-2 flex items-center gap-2">
+                    <input type="hidden" name="id" value={h.id} />
+                    <span className="text-xs text-muted">tags</span>
+                    <input
+                      className="input flex-1 text-xs"
+                      name="tags"
+                      defaultValue={tagList.join(', ')}
+                      placeholder="comma-separated, e.g. etf, defensive, global"
+                      list="tag-suggestions"
+                    />
+                    <button className="btn btn-ghost text-xs" type="submit">Save</button>
+                  </form>
+                  {tagList.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {tagList.map((t) => (
+                        <span key={t} className="rounded bg-line/40 px-2 py-0.5 text-xs">{t}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
+      <datalist id="tag-suggestions">
+        {TAG_SUGGESTIONS.map((t) => <option key={t} value={t} />)}
+      </datalist>
     </AppShell>
   );
 }

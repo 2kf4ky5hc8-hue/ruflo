@@ -88,6 +88,10 @@ export interface RiskProfile {
   cashFloorMonths: number;
   /** Months of business fixed costs required as business reserve. */
   businessReserveFloorMonths: number;
+  /** Portfolio drawdown that triggers a warn-level approval gate. */
+  drawdownCautionPct?: number;
+  /** Portfolio drawdown that blocks new risk-up entirely. */
+  drawdownBlockPct?: number;
   coolingOffMinutes: number;
   sleepModeStart: string; // "HH:MM"
   sleepModeEnd: string;   // "HH:MM"
@@ -159,6 +163,8 @@ export interface PortfolioState {
   dayPnlPct?: number;
   weekPnlPct?: number;
   monthPnlPct?: number;
+  /** Current peak-to-trough portfolio drawdown (0..1). Gates risk-up. */
+  portfolioDrawdownPct?: number;
 }
 
 export type EvaluatorContext = {
@@ -191,7 +197,9 @@ export type RuleId =
   | 'requires_approval_crypto_or_derivative'
   | 'new_instrument_cap'
   | 'sleep_mode'
-  | 'paper_trade_required';
+  | 'paper_trade_required'
+  | 'drawdown_caution'
+  | 'drawdown_block';
 
 export interface BreachedRule {
   rule: RuleId;

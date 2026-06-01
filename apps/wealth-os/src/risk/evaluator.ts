@@ -366,6 +366,22 @@ export function evaluateRisk(
     }
   }
 
+  // 8b. Drawdown gate — block risk-up when portfolio is in a deep drawdown.
+  //     Only applies to risk-up (buy / allocate_cash / deposit_isa) into a
+  //     non-cash asset class; deposits into cash wrappers are still allowed.
+  if (isAddingToPosition && action.assetClass !== 'cash' && portfolio.portfolioDrawdownPct != null) {
+    const dd = portfolio.portfolioDrawdownPct;
+    const block = profile.drawdownBlockPct ?? null;
+    const caution = profile.drawdownCautionPct ?? null;
+    if (block != null && dd >= block) {
+      pushBreach(breaches, 'drawdown_block', 'block',
+        `Portfolio drawdown ${(dd * 100).toFixed(1)}% has hit the ${(block * 100).toFixed(0)}% block threshold. New risk-up is frozen — review the playbook before adding to positions.`);
+    } else if (caution != null && dd >= caution) {
+      pushBreach(breaches, 'drawdown_caution', 'warn',
+        `Portfolio drawdown ${(dd * 100).toFixed(1)}% is above the ${(caution * 100).toFixed(0)}% caution threshold. Requires explicit approval.`);
+    }
+  }
+
   // 9. Always-approval classes
   if (ALWAYS_REQUIRE_APPROVAL.has(action.assetClass)) {
     pushBreach(breaches, 'requires_approval_crypto_or_derivative', 'warn',
@@ -426,6 +442,18 @@ function computeAlternative(
   profile: RiskProfile,
   breaches: BreachedRule[],
 ): SaferAlternative | null {
+  if (breaches.some((b) => b.rule === 'drawdown_block')) {
+    return {
+      kind: 'wait',
+      description: 'Drawdown is severe — sit on hands, re-read the playbook, and let the dust settle before adding to risk.',
+    };
+  }
+  if (breaches.some((b) => b.rule === 'drawdown_caution')) {
+    return {
+      kind: 'split',
+      description: 'Drawdown is elevated — half the intended size and stagger the rest over the next two pay cycles.',
+    };
+  }
   if (breaches.some((b) => b.rule === 'isa_allowance')) {
     return {
       kind: 'switch_wrapper',

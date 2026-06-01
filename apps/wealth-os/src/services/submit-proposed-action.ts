@@ -95,6 +95,8 @@ function profileRowToProfile(row: typeof riskProfiles.$inferSelect): RiskProfile
     cryptoRequiresNoToxicDebt: row.cryptoRequiresNoToxicDebt,
     cashFloorMonths: num(row.cashFloorMonths),
     businessReserveFloorMonths: num(row.businessReserveFloorMonths),
+    drawdownCautionPct: row.drawdownCautionPct != null ? num(row.drawdownCautionPct) : 0.10,
+    drawdownBlockPct: row.drawdownBlockPct != null ? num(row.drawdownBlockPct) : 0.20,
     coolingOffMinutes: row.coolingOffMinutes,
     sleepModeStart: row.sleepModeStart,
     sleepModeEnd: row.sleepModeEnd,

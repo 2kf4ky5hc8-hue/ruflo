@@ -33,6 +33,8 @@ const aggressive: RiskProfile = {
   newInstrumentSizeCapPct: 0.04,
   liquidityMinAdvGbp: 100000,
   paperTradeDays: 7,
+  drawdownCautionPct: 0.10,
+  drawdownBlockPct: 0.20,
 };
 
 const baseline: PortfolioState = {
@@ -430,6 +432,53 @@ describe('evaluateRisk — business reserve gate (review §10.2)', () => {
     expect(r.breachedRules.find((b) => b.rule === 'business_reserve_floor')).toBeDefined();
     expect(r.blocked).toBe(false); // warn-severity, not block
     expect(r.requiresApproval).toBe(true);
+  });
+});
+
+describe('evaluateRisk — drawdown gate', () => {
+  it('blocks risk-up at or above the block threshold (20%)', () => {
+    const r = evaluateRisk(
+      action({ kind: 'buy', assetClass: 'developed_equity', amountGbp: 500, wrapper: 'gia' }),
+      { ...baseline, portfolioDrawdownPct: 0.22 },
+      aggressive,
+      ctx,
+    );
+    expect(r.blocked).toBe(true);
+    expect(r.breachedRules.find((b) => b.rule === 'drawdown_block')).toBeDefined();
+    expect(r.suggestedSaferAlternative?.kind).toBe('wait');
+  });
+
+  it('warns between caution and block thresholds', () => {
+    const r = evaluateRisk(
+      action({ kind: 'buy', assetClass: 'developed_equity', amountGbp: 500, wrapper: 'gia' }),
+      { ...baseline, portfolioDrawdownPct: 0.12 },
+      aggressive,
+      ctx,
+    );
+    expect(r.breachedRules.find((b) => b.rule === 'drawdown_caution')?.severity).toBe('warn');
+    expect(r.blocked).toBe(false);
+    expect(r.requiresApproval).toBe(true);
+  });
+
+  it('does not gate ISA cash deposits even in drawdown (keep contributing)', () => {
+    const r = evaluateRisk(
+      action({ kind: 'deposit_isa', assetClass: 'cash', amountGbp: 500, wrapper: 'isa' }),
+      { ...baseline, portfolioDrawdownPct: 0.25 },
+      aggressive,
+      ctx,
+    );
+    expect(r.breachedRules.find((b) => b.rule === 'drawdown_block')).toBeUndefined();
+  });
+
+  it('no gate when portfolioDrawdownPct is not provided', () => {
+    const r = evaluateRisk(
+      action({ kind: 'buy', assetClass: 'developed_equity', amountGbp: 500, wrapper: 'gia' }),
+      baseline,
+      aggressive,
+      ctx,
+    );
+    expect(r.breachedRules.find((b) => b.rule === 'drawdown_block')).toBeUndefined();
+    expect(r.breachedRules.find((b) => b.rule === 'drawdown_caution')).toBeUndefined();
   });
 });
 
