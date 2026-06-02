@@ -12,6 +12,7 @@ const NAV: Array<{ href: string; label: string }> = [
   { href: '/risk',       label: 'Risk'       },
   { href: '/accounts',   label: 'Accounts'   },
   { href: '/holdings',   label: 'Holdings'   },
+  { href: '/isa',        label: 'ISA'        },
   { href: '/plan',       label: 'Plan'       },
   { href: '/paper',      label: 'Paper'      },
   { href: '/business',   label: 'Business'   },

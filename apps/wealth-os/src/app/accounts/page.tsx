@@ -4,10 +4,14 @@ import { auth } from '@/lib/auth';
 import { AppShell } from '@/components/AppShell';
 import { gbp } from '@/lib/finance';
 import {
-  listAccounts, addAccount, deleteAccount, accountBalance,
+  listAccounts, addAccountByWrapper, deleteAccount, accountBalance,
   listCategories, addTransaction, listTransactions, deleteTransaction,
-  ACCOUNT_TYPES, type AccountType,
+  TX_CLASSIFICATIONS, TX_CLASSIFICATION_LABELS, type TxClassification,
 } from '@/services/ledger';
+import {
+  UK_WRAPPERS, WRAPPER_LABELS, ISA_WRAPPERS, deriveWrapper,
+  type UkWrapper,
+} from '@/services/account-wrappers';
 
 function num(v: FormDataEntryValue | null): number {
   const n = Number(String(v ?? '0').replace(/[, £]/g, ''));
@@ -19,9 +23,12 @@ async function addAccountAction(formData: FormData) {
   const session = await auth();
   if (!session?.user) redirect('/login');
   const name = String(formData.get('name') ?? '').trim();
+  const wrapper = String(formData.get('wrapper') ?? 'personal_cash') as UkWrapper;
+  const isFlexible = formData.get('flexible') === 'on';
   if (!name) redirect('/accounts?err=name');
-  await addAccount((session.user as { id: string }).id, {
-    name, type: String(formData.get('type') ?? 'cash') as AccountType,
+  if (!UK_WRAPPERS.includes(wrapper)) redirect('/accounts?err=wrapper');
+  await addAccountByWrapper((session.user as { id: string }).id, {
+    name, wrapper, isFlexible,
   });
   redirect('/accounts');
 }
@@ -44,12 +51,16 @@ async function addTxAction(formData: FormData) {
   const direction = String(formData.get('direction') ?? 'out');
   const dateStr = String(formData.get('date') ?? '').trim();
   if (!accountId || amount === 0) redirect('/accounts?err=tx');
+  const classification = String(formData.get('classification') ?? '');
   await addTransaction(userId, {
     accountId,
     postedAt: dateStr ? new Date(dateStr) : new Date(),
     amountGbp: direction === 'in' ? Math.abs(amount) : -Math.abs(amount),
     description: String(formData.get('description') ?? '').trim() || '(manual entry)',
     categoryId: String(formData.get('category') ?? '') || undefined,
+    classification: (TX_CLASSIFICATIONS as readonly string[]).includes(classification)
+      ? classification as TxClassification
+      : undefined,
   });
   redirect('/accounts');
 }
@@ -63,9 +74,9 @@ async function deleteTxAction(formData: FormData) {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  cash: 'Cash', isa: 'Stocks & Shares ISA', gia: 'GIA', sipp: 'Pension/SIPP',
-  business: 'Business', mortgage: 'Mortgage', credit: 'Credit', debt: 'Debt',
-  property: 'Property', crypto: 'Crypto',
+  cash: 'Personal cash', isa: 'ISA', gia: 'General Investment Account', sipp: 'Pension / SIPP',
+  business: 'Business cash', mortgage: 'Mortgage', credit: 'Credit', debt: 'Debt',
+  property: 'Property', crypto: 'Crypto', paper: 'Paper portfolio',
 };
 
 export default async function AccountsPage() {
@@ -93,31 +104,44 @@ export default async function AccountsPage() {
       </div>
 
       <section className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {accs.map((a, i) => (
-          <div key={a.id} className="card">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">{a.name}</div>
-              <span className="text-xs text-muted">{TYPE_LABEL[a.type] ?? a.type}</span>
+        {accs.map((a, i) => {
+          const wrap = deriveWrapper({ type: a.type, isaType: a.isaType });
+          const label = wrap ? WRAPPER_LABELS[wrap] : (TYPE_LABEL[a.type] ?? a.type);
+          return (
+            <div key={a.id} className="card">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">{a.name}</div>
+                <span className="text-xs text-muted">
+                  {label}{wrap && ISA_WRAPPERS.has(wrap) && a.isFlexible ? ' · flexible' : ''}
+                </span>
+              </div>
+              <div className="mt-2 text-xl font-semibold">{gbp(balances[i] ?? 0)}</div>
+              <form action={deleteAccountAction} className="mt-2">
+                <input type="hidden" name="id" value={a.id} />
+                <button className="text-xs text-muted hover:text-bad">Delete account</button>
+              </form>
             </div>
-            <div className="mt-2 text-xl font-semibold">{gbp(balances[i] ?? 0)}</div>
-            <form action={deleteAccountAction} className="mt-2">
-              <input type="hidden" name="id" value={a.id} />
-              <button className="text-xs text-muted hover:text-bad">Delete account</button>
-            </form>
-          </div>
-        ))}
+          );
+        })}
         {accs.length === 0 && <p className="subtle">No accounts yet. Add one below.</p>}
       </section>
 
       <section className="card mt-6">
         <div className="h2">Add account</div>
         <form action={addAccountAction} className="mt-4 grid grid-cols-12 gap-2">
-          <input className="input col-span-5" name="name" placeholder="Account name (e.g. Vanguard ISA)" required />
-          <select className="input col-span-4" name="type" defaultValue="cash">
-            {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+          <input className="input col-span-4" name="name" placeholder="Account name (e.g. Vanguard ISA)" required />
+          <select className="input col-span-4" name="wrapper" defaultValue="personal_cash">
+            {UK_WRAPPERS.map((w) => <option key={w} value={w}>{WRAPPER_LABELS[w]}</option>)}
           </select>
-          <button className="btn btn-primary col-span-3" type="submit">Add account</button>
+          <label className="col-span-2 flex items-center gap-2 text-xs">
+            <input type="checkbox" name="flexible" /> Flexible ISA
+          </label>
+          <button className="btn btn-primary col-span-2" type="submit">Add</button>
         </form>
+        <p className="subtle mt-2">
+          UK wrappers only — no 401k/IRA/etc. Tick <em>Flexible ISA</em> if your provider supports same-tax-year
+          replacement of withdrawals.
+        </p>
       </section>
 
       <section className="card mt-6">
@@ -133,11 +157,19 @@ export default async function AccountsPage() {
           <input className="input col-span-2" name="amount" type="number" min={0} step={0.01} placeholder="£ amount" required />
           <input className="input col-span-2" name="description" placeholder="Description" />
           <select className="input col-span-1" name="category" defaultValue="">
-            <option value="">—</option>
+            <option value="">cat</option>
             {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <button className="btn btn-primary col-span-1" type="submit">Add</button>
+          <select className="input col-span-1" name="classification" defaultValue="">
+            <option value="">tag</option>
+            {TX_CLASSIFICATIONS.map((c) => <option key={c} value={c}>{TX_CLASSIFICATION_LABELS[c]}</option>)}
+          </select>
+          <button className="btn btn-primary col-span-12 md:col-span-1" type="submit">Add</button>
         </form>
+        <p className="subtle mt-2">
+          "Tag" is a fixed UK-aware classification (ISA contribution, dividend, fee, etc.) used by the ISA tracker
+          and reports. Optional.
+        </p>
       </section>
 
       <section className="mt-6">

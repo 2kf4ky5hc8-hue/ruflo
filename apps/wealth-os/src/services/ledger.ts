@@ -34,6 +34,26 @@ export async function addAccount(userId: string, input: {
   return row!.id;
 }
 
+import { wrapperToAccountFields, type UkWrapper } from './account-wrappers';
+
+/**
+ * Create an account from the canonical UK wrapper enum. Sets `type`,
+ * `isaType`, `isIsa`, and `isFlexible` (for flexible Cash/S&S ISAs).
+ */
+export async function addAccountByWrapper(userId: string, input: {
+  name: string; wrapper: UkWrapper; isFlexible?: boolean; currency?: string;
+}): Promise<string> {
+  const f = wrapperToAccountFields(input.wrapper);
+  const [row] = await db.insert(accounts).values({
+    userId, name: input.name,
+    type: f.type, isaType: f.isaType, isIsa: f.isIsa,
+    isFlexible: input.isFlexible ?? false,
+    currency: input.currency ?? 'GBP',
+  }).returning({ id: accounts.id });
+  await audit(userId, 'create', 'account', row!.id);
+  return row!.id;
+}
+
 export async function deleteAccount(userId: string, accountId: string) {
   await assertAccountOwner(userId, accountId);
   await db.delete(accounts).where(eq(accounts.id, accountId));
@@ -62,12 +82,33 @@ export async function listCategories(userId: string) {
 
 // ── Manual transaction entry (I-103) ─────────────────────────────────────
 
+export const TX_CLASSIFICATIONS = [
+  'isa_contribution', 'isa_transfer_in', 'isa_transfer_out', 'isa_withdrawal',
+  'gia_deposit', 'sipp_contribution',
+  'dividend', 'interest', 'tax', 'fee',
+] as const;
+export type TxClassification = typeof TX_CLASSIFICATIONS[number];
+
+export const TX_CLASSIFICATION_LABELS: Record<TxClassification, string> = {
+  isa_contribution:  'ISA contribution',
+  isa_transfer_in:   'ISA transfer in',
+  isa_transfer_out:  'ISA transfer out',
+  isa_withdrawal:    'ISA withdrawal',
+  gia_deposit:       'GIA deposit',
+  sipp_contribution: 'SIPP contribution',
+  dividend:          'Dividend',
+  interest:          'Interest',
+  tax:               'Tax',
+  fee:               'Fee',
+};
+
 export interface ManualTxInput {
   accountId: string;
   postedAt: Date;
   amountGbp: number;     // signed
   description: string;
   categoryId?: string;
+  classification?: TxClassification;
 }
 
 export async function addTransaction(userId: string, input: ManualTxInput): Promise<string> {
@@ -80,6 +121,7 @@ export async function addTransaction(userId: string, input: ManualTxInput): Prom
     descriptionRaw: input.description,
     descriptionClean: input.description,
     categoryId: input.categoryId ?? null,
+    classification: input.classification ?? null,
     source: 'manual',
     reconciliationStatus: 'reconciled',
     lastVerifiedAt: new Date(),

@@ -93,6 +93,7 @@ export const transactions = pgTable('transactions', {
   confidenceScore: numeric('confidence_score', { precision: 5, scale: 4 }),
   reconciliationStatus: varchar('reconciliation_status', { length: 20 }).notNull().default('unreconciled'),
   lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }),
+  classification: varchar('classification', { length: 40 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   accountTimeIdx: index('tx_account_time_idx').on(t.accountId, t.postedAt),
@@ -195,9 +196,13 @@ export const isaDeposits = pgTable('isa_deposits', {
   depositedAt: timestamp('deposited_at', { withTimezone: true }).notNull(),
   amount: money('amount').notNull(),
   taxYear: integer('tax_year').notNull(),
+  // 'contribution' | 'transfer_in' | 'transfer_out' | 'withdrawal'
+  kind: varchar('kind', { length: 20 }).notNull().default('contribution'),
+  note: text('note'),
   sourceTransactionId: uuid('source_transaction_id').references(() => transactions.id, { onDelete: 'set null' }),
 }, (t) => ({
   userYearIdx: index('isa_deposits_user_year_idx').on(t.userId, t.taxYear),
+  userYearKindIdx: index('isa_deposits_user_year_kind_idx').on(t.userId, t.taxYear, t.kind),
 }));
 
 export const businesses = pgTable('businesses', {
