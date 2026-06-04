@@ -120,6 +120,13 @@
     .status-pill { font-size: 11px; padding: 2px 6px; border-radius: 999px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
     .status-pill.live { color: var(--good); border-color: rgba(108,194,139,.4); }
     .status-pill.off { color: var(--danger); border-color: rgba(224,112,112,.4); }
+    .saving-pill {
+      font-size: 11px; padding: 2px 7px; border-radius: 999px;
+      background: var(--panel-2); color: var(--warn);
+      border: 1px solid rgba(224,192,112,.4);
+      animation: saving-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes saving-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
     /* Summary bar */
     .summary {
@@ -254,13 +261,16 @@ alter publication supabase_realtime add table jobs;</pre>
         jobs: [],
         showArchived: false,
         editing: null, // job object or 'new'
-        live: false
+        live: false,
+        pending: new Set(),       // ids with a save in flight
+        rollback: new Map()       // id -> row state to revert to on failure
       };
 
       root.innerHTML = `
         <header class="top">
           <h1>Atlas</h1>
           <span id="livePill" class="status-pill">connecting…</span>
+          <span id="savingPill" class="saving-pill" hidden>saving…</span>
           <span class="spacer"></span>
           <label><input type="checkbox" id="showArchived" /> Show archived</label>
           <button id="addBtn" class="primary">+ Add job</button>
@@ -275,6 +285,7 @@ alter publication supabase_realtime add table jobs;</pre>
         board: root.querySelector('#board'),
         summary: root.querySelector('#summary'),
         livePill: root.querySelector('#livePill'),
+        savingPill: root.querySelector('#savingPill'),
         showArchived: root.querySelector('#showArchived'),
         addBtn: root.querySelector('#addBtn'),
         who: root.querySelector('#who'),
@@ -497,7 +508,7 @@ alter publication supabase_realtime add table jobs;</pre>
         }
 
         back.querySelector('#f-save').onclick = async () => {
-          const payload = {
+          const patch = {
             name: back.querySelector('#f-name').value.trim(),
             address: back.querySelector('#f-address').value.trim(),
             stage: back.querySelector('#f-stage').value,
@@ -506,28 +517,62 @@ alter publication supabase_realtime add table jobs;</pre>
             amount_outstanding: Number(back.querySelector('#f-amount').value || 0),
             payment_status: back.querySelector('#f-payment').value,
             invoice_ref: back.querySelector('#f-invoice').value.trim(),
-            notes: back.querySelector('#f-notes').value,
-            updated_at: new Date().toISOString(),
-            updated_by: me
+            notes: back.querySelector('#f-notes').value
           };
-          if (!payload.name) { alert('Name is required'); return; }
+          if (!patch.name) { alert('Name is required'); return; }
           if (isNew) {
-            const { error } = await supabase.from('jobs').insert(payload);
-            if (error) return alert(error.message);
+            const row = { ...patch, updated_at: new Date().toISOString(), updated_by: me };
+            close();
+            const { error } = await supabase.from('jobs').insert(row);
+            if (error) alert(`Create failed.\n\n${error.message}`);
           } else {
-            const { error } = await supabase.from('jobs').update(payload).eq('id', j.id);
-            if (error) return alert(error.message);
+            close();
+            updateJob(j.id, patch);
           }
-          close();
+          return;
         };
 
         setTimeout(() => back.querySelector('#f-name').focus(), 0);
       }
 
+      // Single update path used by drag/drop AND modal edits.
+      // Writes the change to local state + UI immediately, sends to Supabase
+      // in the background, and rolls back on failure.
       async function updateJob(id, patch) {
-        const payload = { ...patch, updated_at: new Date().toISOString(), updated_by: me };
+        const i = state.jobs.findIndex(j => j.id === id);
+        if (i < 0) return;
+
+        // Stash the pre-change row for rollback (only on first in-flight write).
+        if (!state.rollback.has(id)) state.rollback.set(id, state.jobs[i]);
+
+        const nowIso = new Date().toISOString();
+        state.jobs[i] = { ...state.jobs[i], ...patch, updated_at: nowIso, updated_by: me };
+        state.pending.add(id);
+        updateSavingUI();
+        renderBoard();
+
+        const payload = { ...patch, updated_at: nowIso, updated_by: me };
         const { error } = await supabase.from('jobs').update(payload).eq('id', id);
-        if (error) alert(error.message);
+
+        state.pending.delete(id);
+        if (error) {
+          const idx = state.jobs.findIndex(j => j.id === id);
+          if (idx >= 0 && state.rollback.has(id)) state.jobs[idx] = state.rollback.get(id);
+          state.rollback.delete(id);
+          updateSavingUI();
+          renderBoard();
+          alert(`Save failed — change reverted.\n\n${error.message}`);
+          return;
+        }
+        // Success — realtime will echo the server row back; clear rollback.
+        state.rollback.delete(id);
+        updateSavingUI();
+      }
+
+      function updateSavingUI() {
+        const n = state.pending.size;
+        els.savingPill.hidden = n === 0;
+        els.savingPill.textContent = n > 1 ? `saving (${n})…` : 'saving…';
       }
     }
 
