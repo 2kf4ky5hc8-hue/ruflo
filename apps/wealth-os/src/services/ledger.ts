@@ -9,6 +9,7 @@ import {
   accounts, transactions, categories, instruments, holdings, auditEvents,
 } from '../db/schema/index';
 import { rowKey, type ParsedRow } from './csv-import';
+import { tryRecordIsaMovementFromTransaction } from './isa-tracking';
 
 export const ACCOUNT_TYPES = [
   'cash', 'isa', 'gia', 'sipp', 'business', 'mortgage', 'credit', 'debt', 'property', 'crypto',
@@ -127,6 +128,19 @@ export async function addTransaction(userId: string, input: ManualTxInput): Prom
     lastVerifiedAt: new Date(),
   }).returning({ id: transactions.id });
   await audit(userId, 'create', 'transaction', row!.id);
+
+  // Auto-mirror into the ISA tracker if the classification + account match.
+  // Silent no-op when not applicable. Idempotent via sourceTransactionId.
+  await tryRecordIsaMovementFromTransaction({
+    userId,
+    transactionId: row!.id,
+    accountId: input.accountId,
+    amountGbp: input.amountGbp,
+    postedAt: input.postedAt,
+    classification: input.classification,
+    note: input.description,
+  });
+
   return row!.id;
 }
 
@@ -156,9 +170,9 @@ export async function deleteTransaction(userId: string, txId: string) {
 
 export async function commitImportedRows(
   userId: string, accountId: string, rows: ParsedRow[],
-): Promise<{ inserted: number; skipped: number }> {
+): Promise<{ inserted: number; skipped: number; isaMirrored: number }> {
   await assertAccountOwner(userId, accountId);
-  if (rows.length === 0) return { inserted: 0, skipped: 0 };
+  if (rows.length === 0) return { inserted: 0, skipped: 0, isaMirrored: 0 };
 
   // I-108 — duplicate detection. Build the set of keys already in this
   // account, then skip any incoming row that matches an existing transaction
@@ -191,8 +205,9 @@ export async function commitImportedRows(
     toInsert.push(r);
   }
 
+  let isaMirrored = 0;
   if (toInsert.length > 0) {
-    await db.insert(transactions).values(toInsert.map((r) => ({
+    const inserted = await db.insert(transactions).values(toInsert.map((r) => ({
       accountId,
       postedAt: r.postedAt,
       amount: r.amountGbp.toString(),
@@ -200,12 +215,29 @@ export async function commitImportedRows(
       counterparty: r.counterparty ?? null,
       descriptionRaw: r.description,
       descriptionClean: r.description,
+      classification: r.classification ?? null,
       source: 'csv_import',
       reconciliationStatus: 'unreconciled' as const,
-    })));
+    }))).returning({ id: transactions.id });
+
+    // Auto-mirror any ISA-classified rows into the ISA tracker.
+    for (let i = 0; i < inserted.length; i++) {
+      const tx = inserted[i]!;
+      const r = toInsert[i]!;
+      const res = await tryRecordIsaMovementFromTransaction({
+        userId,
+        transactionId: tx.id,
+        accountId,
+        amountGbp: r.amountGbp,
+        postedAt: r.postedAt,
+        classification: r.classification,
+        note: r.description,
+      });
+      if (res.written) isaMirrored++;
+    }
   }
   await audit(userId, 'csv_import', 'account', accountId);
-  return { inserted: toInsert.length, skipped };
+  return { inserted: toInsert.length, skipped, isaMirrored };
 }
 
 // ── Instruments + holdings (I-104) ───────────────────────────────────────

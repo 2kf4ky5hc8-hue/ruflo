@@ -270,3 +270,78 @@ export async function deleteIsaMovement(userId: string, depositId: string, db: D
   await db.delete(isaDeposits).where(eq(isaDeposits.id, depositId));
   await recomputeIsaYear(userId, row.taxYear, db);
 }
+
+// ── Bridge: transaction classification → ISA deposit (pure mapping) ──────
+
+/** UK-aware tx classifications that map to an ISA deposit kind. */
+export type IsaTxClassification =
+  | 'isa_contribution' | 'isa_transfer_in' | 'isa_transfer_out' | 'isa_withdrawal';
+
+const TX_TO_ISA_KIND: Record<IsaTxClassification, IsaDepositKind> = {
+  isa_contribution:  'contribution',
+  isa_transfer_in:   'transfer_in',
+  isa_transfer_out:  'transfer_out',
+  isa_withdrawal:    'withdrawal',
+};
+
+export function isIsaTxClassification(c: string | null | undefined): c is IsaTxClassification {
+  return c === 'isa_contribution' || c === 'isa_transfer_in'
+      || c === 'isa_transfer_out' || c === 'isa_withdrawal';
+}
+
+export function isaKindForClassification(c: IsaTxClassification): IsaDepositKind {
+  return TX_TO_ISA_KIND[c];
+}
+
+/**
+ * If a transaction is on an ISA-wrapper account AND has an ISA classification,
+ * persist the matching `isa_deposit` row (idempotent on `sourceTransactionId`).
+ * Returns { written } so callers can show "+ 1 ISA contribution recorded".
+ *
+ * Called automatically from addTransaction and commitImportedRows so the
+ * user never has to double-enter between Accounts and the ISA tracker.
+ */
+export async function tryRecordIsaMovementFromTransaction(args: {
+  userId: string;
+  transactionId: string;
+  accountId: string;
+  /** Signed transaction amount. We use abs() — direction is implied by the classification. */
+  amountGbp: number;
+  postedAt: Date;
+  classification: string | null | undefined;
+  note?: string;
+  db?: Db;
+}): Promise<{ written: boolean; depositId?: string; reason?: string }> {
+  const db = args.db ?? defaultDb;
+  if (!isIsaTxClassification(args.classification)) return { written: false, reason: 'not_isa_classification' };
+
+  const [acc] = await db.select().from(accounts)
+    .where(and(eq(accounts.id, args.accountId), eq(accounts.userId, args.userId))).limit(1);
+  if (!acc) return { written: false, reason: 'account_not_found' };
+
+  const wrapper = deriveWrapper({ type: acc.type, isaType: acc.isaType });
+  if (wrapper !== 'stocks_and_shares_isa' && wrapper !== 'cash_isa') {
+    // Tag was set but account isn't an ISA — silently ignore, don't error.
+    return { written: false, reason: 'account_not_isa_wrapper' };
+  }
+
+  // Idempotency: skip if a deposit already references this transaction.
+  const [existing] = await db.select({ id: isaDeposits.id })
+    .from(isaDeposits).where(eq(isaDeposits.sourceTransactionId, args.transactionId)).limit(1);
+  if (existing) return { written: false, reason: 'already_recorded', depositId: existing.id };
+
+  const amount = Math.abs(args.amountGbp);
+  if (!(amount > 0)) return { written: false, reason: 'zero_amount' };
+
+  const res = await recordIsaMovement({
+    userId: args.userId,
+    accountId: args.accountId,
+    amountGbp: amount,
+    kind: isaKindForClassification(args.classification),
+    depositedAt: args.postedAt,
+    note: args.note,
+    sourceTransactionId: args.transactionId,
+    db,
+  });
+  return { written: true, depositId: res.id };
+}

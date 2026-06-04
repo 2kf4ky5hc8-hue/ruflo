@@ -12,6 +12,12 @@ export interface ParsedRow {
   amountGbp: number;
   description: string;
   counterparty?: string;
+  /**
+   * Optional UK-aware tag, e.g. 'isa_contribution', 'dividend', 'fee'.
+   * Carried through commit; auto-mirrors into the ISA tracker on commit
+   * when set on an ISA-wrapper account.
+   */
+  classification?: string;
   /** Raw cells kept for audit / debugging. */
   raw: Record<string, string>;
 }
