@@ -560,15 +560,17 @@ textarea {
   box-shadow: var(--shadow-sm);
   padding: 11px 12px;
   cursor: pointer;
-  touch-action: none;
   transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.05s ease;
 }
 .card:hover {
   border-color: var(--line-2);
   box-shadow: var(--shadow-md);
 }
+/* Only draggable cards suppress touch gestures (so drag works on touch
+   devices in the wide layout); non-draggable cards always scroll. */
 .card.grabbable {
   cursor: grab;
+  touch-action: none;
 }
 .card.grabbable:active {
   cursor: grabbing;
@@ -1082,5 +1084,10 @@ textarea {
   }
   .user-meta {
     display: none;
+  }
+  /* On phones the board is one tall column — let finger-swipes scroll the
+     page. Stage changes happen via the Stage dropdown in the job modal. */
+  .card.grabbable {
+    touch-action: auto;
   }
 }
