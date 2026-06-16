@@ -5,7 +5,7 @@
 -- =============================================================================
 
 -- 1) Promote the first admin (change the email to the real one).
-update profiles set role = 'admin' where email = 'james@neospaces.co.uk';
+update profiles set role = 'admin' where email = 'james@cubittwren.co.uk';
 
 -- 2) Set other roles as needed:
 -- update profiles set role = 'manager' where email = 'someone@cubittwren.co.uk';
