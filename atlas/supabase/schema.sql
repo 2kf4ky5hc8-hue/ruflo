@@ -254,16 +254,21 @@ create trigger jobs_activity_update
   for each row execute function jobs_log_activity();
 
 -- profiles: only admins may change role or active status.
+-- The guard applies to changes made *through the app* (a logged-in user).
+-- Direct SQL (SQL Editor / service role) has no auth.uid() and is trusted,
+-- so it is allowed — this is how the first admin is bootstrapped.
 create or replace function profiles_guard_role()
 returns trigger language plpgsql security definer set search_path = public
 as $$
 begin
   new.updated_at := now();
-  if new.role is distinct from old.role and not is_admin() then
-    raise exception 'Only admins can change user roles';
-  end if;
-  if new.active is distinct from old.active and not is_admin() then
-    raise exception 'Only admins can change active status';
+  if auth.uid() is not null and not is_admin() then
+    if new.role is distinct from old.role then
+      raise exception 'Only admins can change user roles';
+    end if;
+    if new.active is distinct from old.active then
+      raise exception 'Only admins can change active status';
+    end if;
   end if;
   return new;
 end; $$;
