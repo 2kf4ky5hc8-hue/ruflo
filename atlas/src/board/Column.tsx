@@ -18,9 +18,13 @@ export function Column({
   const { setNodeRef, isOver } = useDroppable({ id: stage.value });
 
   return (
-    <section ref={setNodeRef} className={'column' + (isOver ? ' over' : '')}>
+    <section
+      ref={setNodeRef}
+      className={'column col-' + stage.value + (isOver ? ' over' : '')}
+    >
       <div className="column-head">
-        <span>{stage.label}</span>
+        <span className="dot" />
+        <span className="column-title">{stage.label}</span>
         <span className="count">{jobs.length}</span>
       </div>
       <div className="column-body">
@@ -33,7 +37,9 @@ export function Column({
             draggable={draggable}
           />
         ))}
-        {jobs.length === 0 && <div className="empty muted">No jobs</div>}
+        {jobs.length === 0 && (
+          <div className="empty">{draggable ? 'Drop jobs here' : 'No jobs'}</div>
+        )}
       </div>
     </section>
   );

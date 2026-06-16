@@ -10,9 +10,35 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
 import { STAGES, type Job, type JobStage, type Profile } from '../lib/types';
 import { canCreateJobs, canEdit } from '../lib/permissions';
+import { Avatar } from '../components/Avatar';
+import { Icon } from '../components/Icon';
 import { Column } from './Column';
 import { JobModal } from './JobModal';
 import { NewJobForm } from './NewJobForm';
+
+function BoardSkeleton() {
+  return (
+    <div className="board">
+      {STAGES.map((s) => (
+        <section key={s.value} className={'column col-' + s.value}>
+          <div className="column-head">
+            <span className="dot" />
+            <span className="column-title">{s.label}</span>
+          </div>
+          <div className="column-body">
+            {[0, 1].map((i) => (
+              <div key={i} className="card skeleton-card">
+                <div className="sk sk-line w70" />
+                <div className="sk sk-line w40" />
+                <div className="sk sk-badge" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 export function Board() {
   const { profile, signOut } = useAuth();
@@ -104,39 +130,80 @@ export function Board() {
 
   const selected = jobs.find((j) => j.id === selectedId) ?? null;
   const dragEnabled = !showArchived && canEdit(profile?.role);
+  const displayName = profile?.full_name || profile?.email || 'You';
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          Atlas Core <span className="muted">· Cubitt Wren</span>
+          <span className="logo sm">A</span>
+          <span className="brand-name">
+            Atlas <span className="dim">Core</span>
+          </span>
+          <span className="brand-sub">Cubitt Wren</span>
         </div>
+
         <div className="topbar-right">
+          <div className="seg" role="tablist" aria-label="View">
+            <button
+              className={'seg-btn' + (!showArchived ? ' active' : '')}
+              onClick={() => setShowArchived(false)}
+            >
+              Active
+            </button>
+            <button
+              className={'seg-btn' + (showArchived ? ' active' : '')}
+              onClick={() => setShowArchived(true)}
+            >
+              Archived
+            </button>
+          </div>
+
           {canCreateJobs(profile?.role) && !showArchived && (
             <button className="btn primary" onClick={() => setCreating(true)}>
-              + New job
+              <Icon name="plus" size={16} /> New job
             </button>
           )}
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={(e) => setShowArchived(e.target.checked)}
-            />
-            Archived
-          </label>
-          <span className="role-badge">
-            {profile?.full_name || profile?.email}
-            <span className="muted"> · {profile?.role}</span>
-          </span>
-          <button className="btn" onClick={signOut}>
+
+          <div className="user-chip">
+            <Avatar name={displayName} id={profile?.id} size={28} />
+            <div className="user-meta">
+              <span className="user-name">{displayName}</span>
+              <span className="user-role">{profile?.role}</span>
+            </div>
+          </div>
+          <button className="btn ghost" onClick={signOut}>
             Sign out
           </button>
         </div>
       </header>
 
       {loading ? (
-        <div className="center muted">Loading board…</div>
+        <BoardSkeleton />
+      ) : jobs.length === 0 ? (
+        <div className="center">
+          <div className="empty-state">
+            <span className="e-icon">
+              <Icon name="inbox" size={22} />
+            </span>
+            {showArchived ? (
+              <>
+                <strong>No archived jobs</strong>
+                <span>Archived jobs will appear here.</span>
+              </>
+            ) : (
+              <>
+                <strong>No jobs yet</strong>
+                <span>Add your first lead to get the board going.</span>
+                {canCreateJobs(profile?.role) && (
+                  <button className="btn primary" onClick={() => setCreating(true)}>
+                    <Icon name="plus" size={16} /> New job
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       ) : (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <div className="board">

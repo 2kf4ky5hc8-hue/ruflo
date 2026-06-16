@@ -37,8 +37,18 @@ export function LoginPage() {
   return (
     <div className="auth">
       <form className="auth-card" onSubmit={signIn}>
-        <h1>Atlas Core</h1>
-        <p className="muted">Cubitt Wren — operations board</p>
+        <div className="auth-brand">
+          <span className="logo">A</span>
+          <div>
+            <div className="brand-name">
+              Atlas <span className="dim">Core</span>
+            </div>
+            <div className="muted small">Cubitt Wren · Operations</div>
+          </div>
+        </div>
+
+        <h1 className="auth-title">Sign in</h1>
+        <p className="auth-sub">Welcome back. Sign in to view the board.</p>
 
         <label>
           Email
@@ -46,6 +56,7 @@ export function LoginPage() {
             type="email"
             value={email}
             autoComplete="username"
+            placeholder="you@cubittwren.co.uk"
             onChange={(e) => setEmail(e.target.value)}
             required
           />
@@ -56,6 +67,7 @@ export function LoginPage() {
             type="password"
             value={password}
             autoComplete="current-password"
+            placeholder="••••••••"
             onChange={(e) => setPassword(e.target.value)}
             required
           />
@@ -75,6 +87,8 @@ export function LoginPage() {
         >
           Forgot password?
         </button>
+
+        <div className="auth-foot">Invite-only · contact an admin for access</div>
       </form>
     </div>
   );

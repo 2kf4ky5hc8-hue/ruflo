@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
+import { Avatar } from '../components/Avatar';
 import type { JobAssignment, Profile } from '../lib/types';
 
 export function Assignments({
@@ -61,17 +62,16 @@ export function Assignments({
   return (
     <section className="panel">
       <h3>Team members</h3>
-      {rows.length === 0 && <p className="muted">No team members assigned yet.</p>}
+      <p className="panel-hint">Everyone working on this job.</p>
+
+      {rows.length === 0 && <p className="muted small">No team members assigned yet.</p>}
       <ul className="chip-list">
         {rows.map((r) => (
           <li key={r.id} className="chip">
+            <Avatar name={profileName(r.user_id)} id={r.user_id} size={20} />
             {profileName(r.user_id)}
             {canManage && (
-              <button
-                className="chip-x"
-                onClick={() => remove(r.id)}
-                aria-label="Remove"
-              >
+              <button className="chip-x" onClick={() => remove(r.id)} aria-label="Remove">
                 ✕
               </button>
             )}

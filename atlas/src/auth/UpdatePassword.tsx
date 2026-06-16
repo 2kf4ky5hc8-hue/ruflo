@@ -23,13 +23,26 @@ export function UpdatePassword({ onDone }: { onDone: () => void }) {
   return (
     <div className="auth">
       <form className="auth-card" onSubmit={submit}>
-        <h1>Set a new password</h1>
+        <div className="auth-brand">
+          <span className="logo">A</span>
+          <div>
+            <div className="brand-name">
+              Atlas <span className="dim">Core</span>
+            </div>
+            <div className="muted small">Cubitt Wren · Operations</div>
+          </div>
+        </div>
+
+        <h1 className="auth-title">Set a new password</h1>
+        <p className="auth-sub">Choose a password to finish signing in.</p>
+
         <label>
           New password
           <input
             type="password"
             value={password}
             autoComplete="new-password"
+            placeholder="At least 8 characters"
             onChange={(e) => setPassword(e.target.value)}
             required
           />
