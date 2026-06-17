@@ -10,8 +10,8 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
 import { STAGES, type Job, type JobStage, type Profile } from '../lib/types';
 import { canCreateJobs, canEdit } from '../lib/permissions';
-import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
+import { TopBar, type AppView } from '../components/TopBar';
 import { Column } from './Column';
 import { JobModal } from './JobModal';
 import { NewJobForm } from './NewJobForm';
@@ -40,8 +40,8 @@ function BoardSkeleton() {
   );
 }
 
-export function Board() {
-  const { profile, signOut } = useAuth();
+export function Board({ onNav }: { onNav: (v: AppView) => void }) {
+  const { profile } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -130,53 +130,36 @@ export function Board() {
 
   const selected = jobs.find((j) => j.id === selectedId) ?? null;
   const dragEnabled = !showArchived && canEdit(profile?.role);
-  const displayName = profile?.full_name || profile?.email || 'You';
 
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <span className="logo sm">A</span>
-          <span className="brand-name">
-            Atlas <span className="dim">Core</span>
-          </span>
-          <span className="brand-sub">Cubitt Wren</span>
-        </div>
-
-        <div className="topbar-right">
-          <div className="seg" role="tablist" aria-label="View">
-            <button
-              className={'seg-btn' + (!showArchived ? ' active' : '')}
-              onClick={() => setShowArchived(false)}
-            >
-              Active
-            </button>
-            <button
-              className={'seg-btn' + (showArchived ? ' active' : '')}
-              onClick={() => setShowArchived(true)}
-            >
-              Archived
-            </button>
-          </div>
-
-          {canCreateJobs(profile?.role) && !showArchived && (
-            <button className="btn primary" onClick={() => setCreating(true)}>
-              <Icon name="plus" size={16} /> New job
-            </button>
-          )}
-
-          <div className="user-chip">
-            <Avatar name={displayName} id={profile?.id} size={28} />
-            <div className="user-meta">
-              <span className="user-name">{displayName}</span>
-              <span className="user-role">{profile?.role}</span>
+      <TopBar
+        current="board"
+        onNav={onNav}
+        right={
+          <>
+            <div className="seg" role="tablist" aria-label="View">
+              <button
+                className={'seg-btn' + (!showArchived ? ' active' : '')}
+                onClick={() => setShowArchived(false)}
+              >
+                Active
+              </button>
+              <button
+                className={'seg-btn' + (showArchived ? ' active' : '')}
+                onClick={() => setShowArchived(true)}
+              >
+                Archived
+              </button>
             </div>
-          </div>
-          <button className="btn ghost" onClick={signOut}>
-            Sign out
-          </button>
-        </div>
-      </header>
+            {canCreateJobs(profile?.role) && !showArchived && (
+              <button className="btn primary" onClick={() => setCreating(true)}>
+                <Icon name="plus" size={16} /> New job
+              </button>
+            )}
+          </>
+        }
+      />
 
       {loading ? (
         <BoardSkeleton />

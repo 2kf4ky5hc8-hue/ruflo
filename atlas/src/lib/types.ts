@@ -45,6 +45,8 @@ export interface Job {
   job_name: string;
   client_name: string | null;
   site_address: string | null;
+  client_id: string | null;
+  property_id: string | null;
   stage: JobStage;
   assigned_manager: string | null;
   lead_source: string | null;
@@ -60,6 +62,39 @@ export interface Job {
   archived_at: string | null;
   archived_by: string | null;
   position: number;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  archived: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Property {
+  id: string;
+  client_id: string;
+  label: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  town: string | null;
+  postcode: string | null;
+  notes: string | null;
+  archived: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
@@ -133,3 +168,10 @@ export const paymentLabel = (v?: string | null): string =>
   PAYMENT_STATUSES.find((s) => s.value === v)?.label ?? v ?? '';
 export const contributionLabel = (v?: string | null): string =>
   CONTRIBUTION_TYPES.find((s) => s.value === v)?.label ?? v ?? '';
+
+export const propertyLabel = (
+  p: Pick<Property, 'label' | 'address_line1' | 'town' | 'postcode'>,
+): string =>
+  p.label?.trim() ||
+  [p.address_line1, p.town, p.postcode].filter(Boolean).join(', ') ||
+  'Unnamed property';

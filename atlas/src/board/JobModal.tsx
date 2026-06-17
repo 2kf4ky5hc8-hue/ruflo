@@ -17,6 +17,7 @@ import {
 import { Assignments } from './Assignments';
 import { ActivityLog } from './ActivityLog';
 import { ContributionList } from '../contributions/ContributionList';
+import { ClientPropertyPicker } from '../clients/ClientPropertyPicker';
 
 export function JobModal({
   job,
@@ -44,6 +45,8 @@ export function JobModal({
     site_address: job.site_address ?? '',
     stage: job.stage,
     assigned_manager: job.assigned_manager ?? '',
+    client_id: job.client_id ?? '',
+    property_id: job.property_id ?? '',
     lead_source: job.lead_source ?? '',
     estimated_value: job.estimated_value?.toString() ?? '',
     amount_outstanding: job.amount_outstanding?.toString() ?? '',
@@ -71,6 +74,8 @@ export function JobModal({
         site_address: form.site_address.trim() || null,
         stage: form.stage,
         assigned_manager: form.assigned_manager || null,
+        client_id: form.client_id || null,
+        property_id: form.property_id || null,
         lead_source: form.lead_source.trim() || null,
         estimated_value: form.estimated_value ? Number(form.estimated_value) : null,
         amount_outstanding: form.amount_outstanding
@@ -212,6 +217,13 @@ export function JobModal({
                 ))}
               </select>
             </label>
+            <ClientPropertyPicker
+              clientId={form.client_id}
+              propertyId={form.property_id}
+              onClientChange={(v) => set('client_id', v)}
+              onPropertyChange={(v) => set('property_id', v)}
+              disabled={!editable}
+            />
           </div>
         </div>
 
