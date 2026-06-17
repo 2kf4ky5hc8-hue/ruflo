@@ -144,8 +144,10 @@ create policy clients_update on clients
   for update to authenticated
   using (is_manager_or_admin() or (auth_role() = 'staff' and can_see_client(id)))
   with check (is_manager_or_admin() or (auth_role() = 'staff' and can_see_client(id)));
+-- Archive-only: business records are NEVER hard-deleted. Deny all deletes;
+-- "removal" happens via the archived flag (an UPDATE), not DELETE.
 create policy clients_delete on clients
-  for delete to authenticated using (is_admin());
+  for delete to authenticated using (false);
 
 drop policy if exists properties_select on properties;
 drop policy if exists properties_insert on properties;
@@ -161,8 +163,9 @@ create policy properties_update on properties
   for update to authenticated
   using (is_manager_or_admin() or (auth_role() = 'staff' and can_see_property(id)))
   with check (is_manager_or_admin() or (auth_role() = 'staff' and can_see_property(id)));
+-- Archive-only: never hard-delete. Deny all deletes (use the archived flag).
 create policy properties_delete on properties
-  for delete to authenticated using (is_admin());
+  for delete to authenticated using (false);
 
 -- ----------------------------------------------------------------------------
 -- Grants (RLS still governs rows). New objects need explicit grants.

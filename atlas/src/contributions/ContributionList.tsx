@@ -10,13 +10,11 @@ export function ContributionList({
   profiles,
   profileName,
   canAdd,
-  canManageAll,
 }: {
   jobId: string;
   profiles: Profile[];
   profileName: (id: string | null) => string;
   canAdd: boolean;
-  canManageAll: boolean;
 }) {
   const [rows, setRows] = useState<JobContribution[]>([]);
 
@@ -32,12 +30,6 @@ export function ContributionList({
   useEffect(() => {
     load();
   }, [load]);
-
-  async function remove(id: string) {
-    const { error } = await supabase.from('job_contributions').delete().eq('id', id);
-    if (error) alert(error.message);
-    else load();
-  }
 
   return (
     <section className="panel">
@@ -60,11 +52,6 @@ export function ContributionList({
               {c.description && <div className="contrib-desc">{c.description}</div>}
               <div className="contrib-foot muted">
                 {dateLabel(c.occurred_at)} · added by {profileName(c.added_by)}
-                {canManageAll && (
-                  <button className="btn link danger" onClick={() => remove(c.id)}>
-                    remove
-                  </button>
-                )}
               </div>
             </div>
           </li>

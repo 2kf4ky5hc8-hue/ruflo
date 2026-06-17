@@ -320,9 +320,9 @@ create policy jobs_update on jobs
   for update to authenticated
   using (is_manager_or_admin() or (auth_role() = 'staff' and can_see_job(id)))
   with check (is_manager_or_admin() or (auth_role() = 'staff' and can_see_job(id)));
--- No app-level deletes — jobs are archived. Admins may delete for cleanup only.
+-- Archive-only: jobs are NEVER hard-deleted. Deny all deletes (use archived flag).
 create policy jobs_delete on jobs
-  for delete to authenticated using (is_admin());
+  for delete to authenticated using (false);
 
 -- job_assignments: visible with the job; only managers/admins manage them.
 drop policy if exists job_assignments_select on job_assignments;
@@ -355,8 +355,9 @@ create policy job_contributions_update on job_contributions
   for update to authenticated
   using (is_manager_or_admin() or added_by = auth.uid())
   with check (is_manager_or_admin() or added_by = auth.uid());
+-- Immutable contribution ledger — entries are never hard-deleted.
 create policy job_contributions_delete on job_contributions
-  for delete to authenticated using (is_manager_or_admin() or added_by = auth.uid());
+  for delete to authenticated using (false);
 
 -- job_activity: read-only for clients (written only by triggers).
 drop policy if exists job_activity_select on job_activity;
