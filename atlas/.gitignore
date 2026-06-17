@@ -6,7 +6,8 @@ dist
 .DS_Store
 .vite
 
-# Intentionally committed: holds PUBLIC client values only (Supabase project URL
-# + publishable/anon key) so the Cloudflare build self-configures. No secrets.
-# Overrides the repo-root ".env.*" ignore rule for this one file.
+# Intentionally committed: hold PUBLIC client values only (Supabase project URL
+# + publishable/anon key) so the Cloudflare builds self-configure. No secrets.
+# Override the repo-root ".env.*" ignore rule for these files.
 !.env.production
+!.env.staging
