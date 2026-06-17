@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
 import { Modal } from '../components/Modal';
+import { ClientPropertyPicker } from '../clients/ClientPropertyPicker';
 import {
   STAGES,
   PAYMENT_STATUSES,
@@ -12,10 +13,14 @@ import {
 
 export function NewJobForm({
   profiles,
+  initialClientId = '',
+  initialPropertyId = '',
   onClose,
   onCreated,
 }: {
   profiles: Profile[];
+  initialClientId?: string;
+  initialPropertyId?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -23,12 +28,29 @@ export function NewJobForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Use the passed team list; if opened without one (e.g. from a property
+  // page), fetch it so the manager picker still works.
+  const [people, setPeople] = useState<Profile[]>(profiles);
+  useEffect(() => {
+    if (profiles.length > 0) {
+      setPeople(profiles);
+      return;
+    }
+    supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name', { ascending: true })
+      .then(({ data }) => setPeople((data as Profile[]) ?? []));
+  }, [profiles]);
+
   const [form, setForm] = useState({
     job_name: '',
     client_name: '',
     site_address: '',
     stage: 'lead' as JobStage,
     assigned_manager: '',
+    client_id: initialClientId,
+    property_id: initialPropertyId,
     lead_source: '',
     estimated_value: '',
     amount_outstanding: '',
@@ -57,6 +79,8 @@ export function NewJobForm({
       site_address: form.site_address.trim() || null,
       stage: form.stage,
       assigned_manager: form.assigned_manager || null,
+      client_id: form.client_id || null,
+      property_id: form.property_id || null,
       lead_source: form.lead_source.trim() || null,
       estimated_value: form.estimated_value ? Number(form.estimated_value) : null,
       amount_outstanding: form.amount_outstanding
@@ -125,6 +149,14 @@ export function NewJobForm({
             onChange={(e) => set('site_address', e.target.value)}
           />
         </label>
+
+        <ClientPropertyPicker
+          clientId={form.client_id}
+          propertyId={form.property_id}
+          onClientChange={(v) => set('client_id', v)}
+          onPropertyChange={(v) => set('property_id', v)}
+        />
+
         <label>
           Stage
           <select
@@ -145,7 +177,7 @@ export function NewJobForm({
             onChange={(e) => set('assigned_manager', e.target.value)}
           >
             <option value="">— none —</option>
-            {profiles.map((p) => (
+            {people.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.full_name || p.email}
               </option>
