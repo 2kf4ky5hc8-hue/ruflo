@@ -90,6 +90,58 @@ deployed URL so password-reset links return to the app.
 
 ---
 
+## Data safety & operations
+
+Atlas holds live business data. The guiding rule: **nothing important disappears —
+it gets archived or logged.** These rules are not optional.
+
+### 1. Archive-only principle
+- Business records must **never be hard-deleted through Atlas**.
+- Jobs, clients, properties, contributions, files and variations are **archived**
+  (an `archived` flag), not deleted. Archiving hides a record; it stays in the database.
+- **Activity logs are permanent** — they are append-only history and are never deleted.
+
+### 2. SQL Editor rule
+- The Supabase **SQL Editor is for schema setup, migrations, and emergency admin only.**
+- **Nobody uses the SQL Editor to delete business data.**
+- Row Level Security (RLS) protects the app and normal signed-in users, but the
+  **SQL Editor (runs as superuser) and the `service_role` key bypass RLS entirely.**
+  The deny-delete policies cannot stop a human running destructive SQL by hand —
+  the discipline above plus backups/PITR are the real safeguard.
+
+### 3. Staging-first rule
+- New features and migrations go to **staging before production**.
+- Staging uses a **separate Supabase project** and a **separate Cloudflare Pages
+  deployment** from production.
+- **Staging must never point at production data.** (Staging builds with
+  `npm run build:staging` / `.env.staging`; production builds with `npm run build`
+  / `.env.production`.)
+
+### 4. Migration discipline
+- Every schema change is committed as a **numbered migration file** in
+  `atlas/supabase/migrations/` (e.g. `0001_…`, `0002_…`).
+- **Run migrations on staging first.**
+- Only run the **same committed migration** on production after staging has passed
+  testing. Do not hand-edit production schema ad hoc.
+
+### 5. Backup before production
+- Before any production migration, **take or confirm a Supabase backup / PITR
+  position** (Database → Backups).
+- **Storage files need their own backup process** once added — Supabase database
+  backups do **not** cover Storage objects.
+
+### 6. Promotion runbook (staging → production)
+1. Test the change thoroughly on **staging**.
+2. **Back up** the production Supabase (snapshot + confirm PITR).
+3. Run the **committed migration file(s)** on production, in order.
+4. Merge the approved code to **`main`** (production auto-deploys).
+5. **Confirm production works** (board, clients/properties, an RLS spot-check).
+6. **If anything breaks:** roll back the Cloudflare deployment to the last good
+   build (or the `atlas-core-v1-stable` release), and restore the database from
+   the backup / PITR.
+
+---
+
 ## What's in v1 (and what's not)
 
 **In:** login, shared board, add/edit jobs, move stages (dropdown + drag-and-drop),
