@@ -340,7 +340,6 @@ export function JobModal({
         profiles={profiles}
         profileName={profileName}
         canAdd={editable}
-        canManageAll={isManager}
       />
 
       <ActivityLog jobId={job.id} profileName={profileName} />
