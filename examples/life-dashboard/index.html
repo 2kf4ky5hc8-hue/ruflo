@@ -74,14 +74,25 @@
         <!-- Weather card -->
         <div class="bg-gradient-to-br from-sage-400 to-sage-600 rounded-3xl shadow-soft p-6 text-white flex flex-col justify-between card-hover">
           <div class="flex items-start justify-between">
-            <div>
-              <p class="text-sage-100 text-sm font-medium">London</p>
-              <p class="mt-1 text-3xl font-semibold">16°C</p>
-              <p class="text-sage-100 text-sm">Mild</p>
+            <div class="min-w-0">
+              <button id="weatherCity" class="text-sage-100 text-sm font-medium hover:text-white transition flex items-center gap-1" title="Change location">
+                <span id="weatherName">London</span>
+                <svg viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5 opacity-70"><path d="M5 8l5 5 5-5z"/></svg>
+              </button>
+              <p id="weatherTemp" class="mt-1 text-3xl font-semibold">—</p>
+              <p id="weatherDesc" class="text-sage-100 text-sm">Loading…</p>
             </div>
-            <span class="text-4xl leading-none">⛅</span>
+            <span id="weatherIcon" class="text-4xl leading-none">⛅</span>
           </div>
-          <p class="mt-4 text-[12px] text-sage-100/90">Weather can be connected later.</p>
+          <div id="weatherEditWrap" class="mt-4 hidden">
+            <div class="flex gap-2">
+              <input id="weatherInput" type="text" placeholder="Enter a city…"
+                class="flex-1 rounded-lg bg-white/15 placeholder-white/60 text-white text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/40" />
+              <button id="weatherGo" class="shrink-0 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 transition">Set</button>
+            </div>
+            <p id="weatherError" class="mt-1.5 text-[12px] text-sage-100/90 min-h-[16px]"></p>
+          </div>
+          <p id="weatherHint" class="mt-4 text-[12px] text-sage-100/90">Tap the location to change it.</p>
         </div>
       </div>
     </header>
@@ -292,6 +303,7 @@
       moods: [],
       wins: [],
       reflection: { forward: '', drained: '', attention: '' },
+      weather: { name: 'London', lat: 51.5074, lon: -0.1278 },
     });
 
     let state = load();
@@ -316,6 +328,7 @@
       if (!Array.isArray(s.moods)) s.moods = [];
       if (!Array.isArray(s.wins)) s.wins = [];
       if (!s.reflection) s.reflection = base.reflection;
+      if (!s.weather || typeof s.weather.lat !== 'number') s.weather = base.weather;
       return s;
     }
 
@@ -631,6 +644,85 @@
       hideNotice() { $('#timerNotice').classList.add('hidden'); },
     };
 
+    /* ----------------------- Weather (Open-Meteo, no API key) ----------------------- */
+    // Map WMO weather codes to a friendly label + emoji.
+    function wmo(code) {
+      const map = {
+        0: ['Clear sky', '☀️'], 1: ['Mainly clear', '🌤️'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁️'],
+        45: ['Fog', '🌫️'], 48: ['Rime fog', '🌫️'],
+        51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Dense drizzle', '🌦️'],
+        56: ['Freezing drizzle', '🌧️'], 57: ['Freezing drizzle', '🌧️'],
+        61: ['Light rain', '🌦️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'],
+        66: ['Freezing rain', '🌧️'], 67: ['Freezing rain', '🌧️'],
+        71: ['Light snow', '🌨️'], 73: ['Snow', '🌨️'], 75: ['Heavy snow', '❄️'], 77: ['Snow grains', '🌨️'],
+        80: ['Rain showers', '🌦️'], 81: ['Rain showers', '🌧️'], 82: ['Violent showers', '⛈️'],
+        85: ['Snow showers', '🌨️'], 86: ['Snow showers', '❄️'],
+        95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm', '⛈️'], 99: ['Thunderstorm', '⛈️'],
+      };
+      return map[code] || ['—', '🌡️'];
+    }
+
+    const Weather = {
+      async fetch() {
+        const w = state.weather;
+        $('#weatherName').textContent = w.name;
+        $('#weatherDesc').textContent = 'Loading…';
+        try {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}` +
+            `&current=temperature_2m,weather_code&timezone=auto`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('network');
+          const data = await res.json();
+          const c = data.current;
+          const [label, icon] = wmo(c.weather_code);
+          $('#weatherTemp').textContent = Math.round(c.temperature_2m) + '°C';
+          $('#weatherDesc').textContent = label;
+          $('#weatherIcon').textContent = icon;
+          $('#weatherHint').textContent = 'Tap the location to change it.';
+        } catch (e) {
+          $('#weatherTemp').textContent = '—';
+          $('#weatherDesc').textContent = 'Weather unavailable';
+          $('#weatherIcon').textContent = '🌡️';
+          $('#weatherHint').textContent = 'Offline? Reconnect, then reopen to load weather.';
+        }
+      },
+
+      async setCity(name) {
+        const err = $('#weatherError');
+        const q = (name || '').trim();
+        err.textContent = '';
+        if (!q) return;
+        err.textContent = 'Searching…';
+        try {
+          const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}` +
+            `&count=1&language=en&format=json`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (!data.results || !data.results.length) { err.textContent = 'City not found — try another spelling.'; return; }
+          const r = data.results[0];
+          state.weather = {
+            name: r.name + (r.country_code ? ', ' + r.country_code : ''),
+            lat: r.latitude,
+            lon: r.longitude,
+          };
+          save();
+          $('#weatherInput').value = '';
+          $('#weatherEditWrap').classList.add('hidden');
+          $('#weatherHint').classList.remove('hidden');
+          this.fetch();
+        } catch (e) {
+          err.textContent = 'Could not look up that city.';
+        }
+      },
+
+      toggleEdit() {
+        const wrap = $('#weatherEditWrap');
+        const hidden = wrap.classList.toggle('hidden');
+        $('#weatherHint').classList.toggle('hidden', !hidden);
+        if (!hidden) { $('#weatherError').textContent = ''; $('#weatherInput').focus(); }
+      },
+    };
+
     /* ----------------------- Export / clear ----------------------- */
     function exportData() {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -687,6 +779,10 @@
       $('#timerReset').addEventListener('click', () => Timer.reset());
       $$('.timer-mode').forEach((b) => b.addEventListener('click', () => Timer.setMode(b.dataset.mode)));
 
+      $('#weatherCity').addEventListener('click', () => Weather.toggleEdit());
+      $('#weatherGo').addEventListener('click', () => Weather.setCity($('#weatherInput').value));
+      $('#weatherInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') Weather.setCity($('#weatherInput').value); });
+
       bindReflection();
     }
 
@@ -695,6 +791,7 @@
     renderAll();
     bind();
     Timer.setMode('work');
+    Weather.fetch();
 
     // Refresh the greeting/date if the tab is left open past midnight.
     setInterval(() => { dailyReset(); renderHeader(); renderHabits(); renderProgress(); }, 60 * 1000);
