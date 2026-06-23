@@ -407,6 +407,40 @@
       <p id="trendEmpty" class="mt-3 text-sm text-stone2-400 text-center hidden">No history yet — your scores will build here day by day.</p>
     </section>
 
+    <!-- ============== MONTHLY HEAT-MAP ============== -->
+    <section id="calendarSection" class="bg-white rounded-3xl shadow-soft p-6 mt-5 card-hover">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>📅</span> Monthly Overview</h2>
+        <div class="flex items-center gap-2">
+          <button id="calPrev" class="rounded-full w-8 h-8 bg-cream-100 hover:bg-cream-200 text-stone2-600 transition" aria-label="Previous month">‹</button>
+          <span id="calLabel" class="text-sm font-medium text-stone2-700 min-w-[130px] text-center"></span>
+          <button id="calNext" class="rounded-full w-8 h-8 bg-cream-100 hover:bg-cream-200 text-stone2-600 transition" aria-label="Next month">›</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-7 gap-1.5 mb-1.5 text-center">
+        <span class="text-[11px] font-medium text-stone2-400">M</span>
+        <span class="text-[11px] font-medium text-stone2-400">T</span>
+        <span class="text-[11px] font-medium text-stone2-400">W</span>
+        <span class="text-[11px] font-medium text-stone2-400">T</span>
+        <span class="text-[11px] font-medium text-stone2-400">F</span>
+        <span class="text-[11px] font-medium text-stone2-400">S</span>
+        <span class="text-[11px] font-medium text-stone2-400">S</span>
+      </div>
+      <div id="calGrid" class="grid grid-cols-7 gap-1.5"></div>
+      <div class="mt-4 flex items-center justify-between flex-wrap gap-3">
+        <span class="text-xs text-stone2-400">Avg <b id="calAvg" class="text-sage-600">0%</b> · <span id="calLogged">0</span> days logged · best <span id="calBest">0%</span></span>
+        <div class="flex items-center gap-1.5 text-[11px] text-stone2-400">
+          <span>Less</span>
+          <span class="w-3.5 h-3.5 rounded inline-block" style="background:rgba(107,135,96,0.18)"></span>
+          <span class="w-3.5 h-3.5 rounded inline-block" style="background:rgba(107,135,96,0.45)"></span>
+          <span class="w-3.5 h-3.5 rounded inline-block" style="background:rgba(107,135,96,0.7)"></span>
+          <span class="w-3.5 h-3.5 rounded inline-block" style="background:rgba(107,135,96,0.95)"></span>
+          <span>More</span>
+        </div>
+      </div>
+      <p class="mt-2 text-[11px] text-stone2-400">Tap any day to open it in History below.</p>
+    </section>
+
     <!-- ============== WEEKLY REFLECTION ============== -->
     <section class="bg-white rounded-3xl shadow-soft p-6 mt-5 card-hover">
       <div class="flex items-center justify-between mb-4">
@@ -526,6 +560,7 @@
     let state = loadState();
     let lastSavedAt = null;
     let trendRange = 7;
+    let calMonth = (() => { const d = new Date(); d.setDate(1); return d; })();
 
     function loadState() {
       try {
@@ -1187,6 +1222,47 @@
       });
     }
 
+    /* ----- Monthly heat-map ----- */
+    function renderCalendar() {
+      const y = calMonth.getFullYear(), mo = calMonth.getMonth();
+      $('#calLabel').textContent = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      const offset = (new Date(y, mo, 1).getDay() + 6) % 7; // Monday-first
+      const daysInMonth = new Date(y, mo + 1, 0).getDate();
+      const todayK = dateKey();
+      const isDark = document.documentElement.classList.contains('dark');
+      const emptyBg = isDark ? '#2f352c' : '#f1ece0';
+      const grid = $('#calGrid'); grid.innerHTML = '';
+      for (let i = 0; i < offset; i++) grid.appendChild(document.createElement('div'));
+
+      const scores = []; let best = 0, logged = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const k = dateKey(new Date(y, mo, d));
+        const has = !!recordFor(k);
+        const future = k > todayK;
+        const score = has ? dailyScore(k).total : 0;
+        if (has) { scores.push(score); logged++; best = Math.max(best, score); }
+
+        const cell = document.createElement('button');
+        cell.textContent = d;
+        cell.className = 'aspect-square rounded-lg text-[11px] flex items-center justify-center transition ' +
+          (future ? 'text-stone2-400 cursor-default' : 'hover:ring-2 hover:ring-sage-300 text-stone2-600');
+        cell.style.background = future ? 'transparent' : (has ? `rgba(107,135,96,${0.15 + (score / 100) * 0.8})` : emptyBg);
+        if (!future && has && score >= 55) { cell.classList.remove('text-stone2-600'); cell.classList.add('text-white'); }
+        if (k === todayK) cell.classList.add('ring-2', 'ring-sage-500', 'font-semibold');
+        cell.title = future ? k : `${k}: ${has ? score + '%' : 'no activity'}`;
+        if (future) { cell.disabled = true; }
+        else {
+          cell.addEventListener('click', () => {
+            $('#historyDate').value = k; renderHistory(k);
+            $('#historyDate').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          });
+        }
+        grid.appendChild(cell);
+      }
+      const a = scores.length ? Math.round(scores.reduce((x, z) => x + z, 0) / scores.length) : 0;
+      $('#calAvg').textContent = a + '%'; $('#calLogged').textContent = logged; $('#calBest').textContent = best + '%';
+    }
+
     /* ----- History ----- */
     function renderHistory(k) {
       const view = $('#historyView');
@@ -1269,7 +1345,7 @@
       document.documentElement.classList.toggle('dark', dark);
       $('#themeToggle').textContent = dark ? '☀️' : '🌙';
     }
-    function toggleTheme() { state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark'; save(); applyTheme(); }
+    function toggleTheme() { state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark'; save(); applyTheme(); renderCalendar(); }
 
     /* ----- Confetti ----- */
     let lastConfetti = '';
@@ -1338,14 +1414,14 @@
 
     /* ----- Orchestration ----- */
     function refresh() {
-      renderScore(); renderInsights(); renderScoreTrend(); renderSuggestion();
+      renderScore(); renderInsights(); renderScoreTrend(); renderCalendar(); renderSuggestion();
       if ($('#historyDate').value === dateKey()) renderHistory(dateKey());
     }
     function renderAll() {
       renderHeader(); renderScore(); renderHabits(); renderFocus(); renderMood(); renderSleep();
       renderMoney(); renderPeople(); renderPriorities(); renderWins(); renderGoals();
       $('#tomorrowInput').value = today().tomorrow || '';
-      renderReflection(); renderInsights(); renderScoreTrend(); renderSuggestion();
+      renderReflection(); renderInsights(); renderScoreTrend(); renderCalendar(); renderSuggestion();
       if (!$('#historyDate').value) $('#historyDate').value = dateKey();
       $('#historyDate').max = dateKey();
       renderHistory($('#historyDate').value);
@@ -1388,6 +1464,8 @@
 
       $('#historyDate').addEventListener('change', (e) => renderHistory(e.target.value));
       $$('.trend-range').forEach((b) => b.addEventListener('click', () => { trendRange = Number(b.dataset.range); renderScoreTrend(); }));
+      $('#calPrev').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() - 1); renderCalendar(); });
+      $('#calNext').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() + 1); renderCalendar(); });
 
       $('#exportData').addEventListener('click', exportData);
       $('#importData').addEventListener('change', (e) => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; });
