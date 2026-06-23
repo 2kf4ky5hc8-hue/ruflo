@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Life Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cream: { 50: '#fcfbf7', 100: '#f7f4ec', 200: '#efe9db' },
+            sage: { 100: '#e7ede4', 200: '#cdd9c6', 300: '#a9bd9e', 400: '#86a079', 500: '#6b8760', 600: '#55704c', 700: '#44593d' },
+            stone2: { 100: '#f4f3f1', 200: '#e6e3df', 400: '#9c968d', 600: '#6b655c', 800: '#3f3b35' },
+          },
+          fontFamily: {
+            sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+          },
+          boxShadow: {
+            soft: '0 1px 2px rgba(63,59,53,0.04), 0 8px 24px -12px rgba(63,59,53,0.12)',
+            softer: '0 1px 2px rgba(63,59,53,0.03), 0 4px 16px -10px rgba(63,59,53,0.10)',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { background-color: #fcfbf7; }
+    /* Custom range slider styling */
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      height: 6px; border-radius: 9999px;
+      background: #cdd9c6; outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 20px; height: 20px; border-radius: 9999px;
+      background: #6b8760; cursor: pointer;
+      border: 3px solid #fcfbf7;
+      box-shadow: 0 1px 4px rgba(63,59,53,0.25);
+      transition: transform .12s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 9999px;
+      background: #6b8760; cursor: pointer;
+      border: 3px solid #fcfbf7;
+      box-shadow: 0 1px 4px rgba(63,59,53,0.25);
+    }
+    .fade-in { animation: fadeIn .35s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .card-hover { transition: box-shadow .25s ease, transform .25s ease; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: #cdd9c6; border-radius: 9999px; border: 2px solid #fcfbf7; }
+  </style>
+</head>
+<body class="min-h-screen text-stone2-800 antialiased selection:bg-sage-200">
+
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+
+    <!-- ============================= HEADER ============================= -->
+    <header class="mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- Greeting & date -->
+        <div class="lg:col-span-2 bg-white rounded-3xl shadow-soft p-6 sm:p-8 card-hover">
+          <p id="dateLine" class="text-sm font-medium text-stone2-400 tracking-wide"></p>
+          <h1 id="greeting" class="mt-1 text-3xl sm:text-4xl font-semibold text-stone2-800"></h1>
+          <p id="motivation" class="mt-3 text-stone2-600 text-[15px] leading-relaxed max-w-xl"></p>
+        </div>
+
+        <!-- Weather card -->
+        <div class="bg-gradient-to-br from-sage-400 to-sage-600 rounded-3xl shadow-soft p-6 text-white flex flex-col justify-between card-hover">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-sage-100 text-sm font-medium">London</p>
+              <p class="mt-1 text-3xl font-semibold">16°C</p>
+              <p class="text-sage-100 text-sm">Mild</p>
+            </div>
+            <span class="text-4xl leading-none">⛅</span>
+          </div>
+          <p class="mt-4 text-[12px] text-sage-100/90">Weather can be connected later.</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================== TOP PROGRESS BAR ===================== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mb-6 card-hover">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold text-stone2-800">Today's Progress</h2>
+        <span id="progressLabel" class="text-sm font-medium text-stone2-600">0 of 0 complete</span>
+      </div>
+      <div class="w-full h-3 rounded-full bg-cream-200 overflow-hidden">
+        <div id="progressBar" class="h-full rounded-full bg-gradient-to-r from-sage-400 to-sage-600 transition-all duration-500" style="width:0%"></div>
+      </div>
+      <p id="progressMessage" class="mt-3 text-sm text-sage-600 font-medium min-h-[20px]"></p>
+    </section>
+
+    <!-- ========================= MAIN GRID ========================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- ===================== HABITS TRACKER ===================== -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>🌱</span> Daily Habits</h2>
+          <button id="resetHabits" class="text-xs font-medium text-stone2-400 hover:text-sage-600 transition px-3 py-1.5 rounded-full hover:bg-cream-100">Reset today</button>
+        </div>
+        <ul id="habitList" class="space-y-2.5"></ul>
+
+        <div id="addHabitWrap" class="mt-4 flex gap-2">
+          <input id="newHabit" type="text" maxlength="40" placeholder="Add a custom habit…"
+            class="flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent" />
+          <button id="addHabit" class="shrink-0 rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-4 py-2.5 transition">Add</button>
+        </div>
+        <p id="habitLimit" class="mt-2 text-xs text-stone2-400 hidden">Maximum of 8 habits reached.</p>
+      </section>
+
+      <!-- ===================== FOCUS TIMER ===================== -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>⏳</span> Focus Timer</h2>
+
+        <div class="flex justify-center gap-2 mb-5">
+          <button data-mode="work" class="timer-mode rounded-full px-4 py-1.5 text-sm font-medium transition">Work · 25m</button>
+          <button data-mode="break" class="timer-mode rounded-full px-4 py-1.5 text-sm font-medium transition">Break · 5m</button>
+        </div>
+
+        <div class="text-center">
+          <div id="timerDisplay" class="text-6xl sm:text-7xl font-semibold tracking-tight text-stone2-800 tabular-nums">25:00</div>
+          <p id="timerStatus" class="mt-2 text-sm font-medium text-sage-600">Focus session</p>
+        </div>
+
+        <div class="mt-6 flex items-center justify-center gap-3">
+          <button id="timerStart" class="rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-6 py-2.5 transition">Start</button>
+          <button id="timerPause" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-6 py-2.5 transition">Pause</button>
+          <button id="timerReset" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-6 py-2.5 transition">Reset</button>
+        </div>
+
+        <div id="timerNotice" class="mt-5 hidden rounded-2xl bg-sage-100 border border-sage-200 text-sage-700 text-sm font-medium px-4 py-3 text-center fade-in"></div>
+      </section>
+
+      <!-- ===================== MOOD & ENERGY LOG ===================== -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>💫</span> Mood &amp; Energy</h2>
+
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs font-medium text-stone2-400">Energy</span>
+            <select id="energyInput" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option value="1">1 · Drained</option>
+              <option value="2">2 · Low</option>
+              <option value="3" selected>3 · Steady</option>
+              <option value="4">4 · High</option>
+              <option value="5">5 · Peak</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-stone2-400">Mood</span>
+            <select id="moodInput" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option value="🙂 Good">🙂 Good</option>
+              <option value="😐 Neutral">😐 Neutral</option>
+              <option value="😔 Low">😔 Low</option>
+              <option value="😤 Stressed">😤 Stressed</option>
+              <option value="🔥 Driven">🔥 Driven</option>
+            </select>
+          </label>
+        </div>
+        <input id="moodNote" type="text" maxlength="120" placeholder="Optional note…"
+          class="mt-3 w-full rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
+        <button id="logMood" class="mt-3 w-full rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium py-2.5 transition">Log mood</button>
+
+        <ul id="moodList" class="mt-4 space-y-2 max-h-64 overflow-y-auto pr-1"></ul>
+        <p id="moodEmpty" class="mt-4 text-sm text-stone2-400 text-center">No mood logs yet.</p>
+      </section>
+
+      <!-- ===================== CORE GOALS ===================== -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>🎯</span> Core Goals</h2>
+        <div id="goalList" class="space-y-5"></div>
+      </section>
+
+    </div>
+
+    <!-- ===================== TODAY'S WINS ===================== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mt-6 card-hover">
+      <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>✨</span> Today's Wins</h2>
+      <textarea id="winInput" rows="3" maxlength="1000"
+        placeholder="What went well today? What did you handle better than before?"
+        class="w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
+      <div class="mt-3 flex justify-end">
+        <button id="saveWin" class="rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-5 py-2.5 transition">Save entry</button>
+      </div>
+      <ul id="winList" class="mt-4 space-y-3"></ul>
+      <p id="winEmpty" class="mt-4 text-sm text-stone2-400 text-center">No journal entries saved yet.</p>
+    </section>
+
+    <!-- ===================== WEEKLY REFLECTION ===================== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mt-6 card-hover">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>🪞</span> Weekly Reflection</h2>
+        <span id="reflectSaved" class="text-xs font-medium text-sage-600 opacity-0 transition-opacity">Saved</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <label class="block">
+          <span class="text-sm font-medium text-stone2-600">What moved forward this week?</span>
+          <textarea data-reflect="forward" rows="4"
+            class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium text-stone2-600">What drained my energy?</span>
+          <textarea data-reflect="drained" rows="4"
+            class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium text-stone2-600">What needs attention next week?</span>
+          <textarea data-reflect="attention" rows="4"
+            class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
+        </label>
+      </div>
+      <p id="reflectEmpty" class="mt-3 text-sm text-stone2-400">No weekly reflection saved yet.</p>
+    </section>
+
+    <!-- ===================== SETTINGS / TOOLS ===================== -->
+    <section class="bg-white rounded-3xl shadow-softer p-6 mt-6 mb-4 border border-cream-200">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-semibold text-stone2-800">Your data</h2>
+          <p class="text-sm text-stone2-400 mt-0.5">Everything is stored privately in this browser.</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="exportData" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-4 py-2.5 transition">Export data</button>
+          <button id="clearData" class="rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium px-4 py-2.5 transition">Clear all data</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs text-stone2-400 pb-8">
+      Life Dashboard · your calm command centre
+    </footer>
+  </div>
+
+  <script>
+  /* ===================================================================
+     Life Dashboard — vanilla JS + localStorage
+     Storage key namespace: ld_*
+  =================================================================== */
+  (function () {
+    'use strict';
+
+    const KEY = 'lifeDashboard.v1';
+    const $ = (sel, ctx = document) => ctx.querySelector(sel);
+    const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+
+    const todayKey = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    const DEFAULT_HABITS = [
+      { id: 'water', label: 'Drink water' },
+      { id: 'exercise', label: 'Exercise' },
+      { id: 'reflect', label: 'Meditate / Pray / Reflect' },
+      { id: 'read', label: 'Read' },
+      { id: 'journal', label: 'Journal' },
+    ];
+
+    const DEFAULT_GOALS = [
+      { id: 'health', title: 'Health & Energy', progress: 0, action: '' },
+      { id: 'business', title: 'Business & Money', progress: 0, action: '' },
+      { id: 'family', title: 'Family & Relationships', progress: 0, action: '' },
+    ];
+
+    const MOTIVATIONS = [
+      'Small steps, taken daily, become a different life.',
+      'Calm mind, clear focus. One thing at a time.',
+      'You don\'t have to do it all — just the next right thing.',
+      'Progress is quiet. Keep showing up.',
+      'Discipline is choosing what you want most over what you want now.',
+      'Energy follows attention. Spend it well today.',
+      'The standard you walk past is the standard you accept.',
+      'Be where your feet are. Today is enough.',
+      'Consistency outperforms intensity. Stay steady.',
+      'A peaceful pace still reaches the destination.',
+    ];
+
+    /* ----------------------- State ----------------------- */
+    const defaultState = () => ({
+      date: todayKey(),
+      habits: DEFAULT_HABITS.map((h) => ({ ...h, done: false })),
+      goals: DEFAULT_GOALS.map((g) => ({ ...g })),
+      moods: [],
+      wins: [],
+      reflection: { forward: '', drained: '', attention: '' },
+    });
+
+    let state = load();
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        return migrate(parsed);
+      } catch (e) {
+        console.warn('Could not load saved data, starting fresh.', e);
+        return defaultState();
+      }
+    }
+
+    function migrate(s) {
+      const base = defaultState();
+      s = Object.assign(base, s);
+      if (!Array.isArray(s.habits) || !s.habits.length) s.habits = base.habits;
+      if (!Array.isArray(s.goals) || !s.goals.length) s.goals = base.goals;
+      if (!Array.isArray(s.moods)) s.moods = [];
+      if (!Array.isArray(s.wins)) s.wins = [];
+      if (!s.reflection) s.reflection = base.reflection;
+      return s;
+    }
+
+    function save() {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn('Could not save data.', e);
+      }
+    }
+
+    // Daily reset: if stored date is not today, clear habit completion.
+    function dailyReset() {
+      if (state.date !== todayKey()) {
+        state.date = todayKey();
+        state.habits.forEach((h) => (h.done = false));
+        save();
+      }
+    }
+
+    /* ----------------------- Header ----------------------- */
+    function renderHeader() {
+      const now = new Date();
+      $('#dateLine').textContent = now.toLocaleDateString(undefined, {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      });
+      const h = now.getHours();
+      const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+      $('#greeting').textContent = part + '.';
+      // Deterministic "daily" motivation based on the date, so it changes each day.
+      const seed = Number(todayKey().replace(/-/g, '')) % MOTIVATIONS.length;
+      $('#motivation').textContent = MOTIVATIONS[seed];
+    }
+
+    /* ----------------------- Progress ----------------------- */
+    function renderProgress() {
+      const total = state.habits.length;
+      const done = state.habits.filter((h) => h.done).length;
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      $('#progressBar').style.width = pct + '%';
+      $('#progressLabel').textContent = `${done} of ${total} complete`;
+      const msg = $('#progressMessage');
+      if (total && done === total) {
+        msg.textContent = 'Strong day. Keep the momentum going.';
+      } else if (done > 0) {
+        msg.textContent = `Today's Progress: ${done} of ${total} complete.`;
+      } else {
+        msg.textContent = 'A fresh start. Pick one habit to begin.';
+      }
+    }
+
+    /* ----------------------- Habits ----------------------- */
+    function renderHabits() {
+      const list = $('#habitList');
+      list.innerHTML = '';
+      state.habits.forEach((h) => {
+        const li = document.createElement('li');
+        li.className = 'fade-in';
+        li.innerHTML = `
+          <div class="flex items-center gap-3 rounded-2xl border px-3.5 py-3 transition cursor-pointer ${
+            h.done ? 'bg-sage-100 border-sage-200' : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+          }">
+            <button class="toggle shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${
+              h.done ? 'bg-sage-500 border-sage-500 text-white' : 'border-stone2-200 text-transparent'
+            }" aria-label="Toggle habit">
+              <svg viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+            </button>
+            <span class="flex-1 text-sm font-medium ${h.done ? 'text-sage-700 line-through decoration-sage-300' : 'text-stone2-700'}">${escapeHtml(h.label)}</span>
+            <button class="remove shrink-0 text-stone2-200 hover:text-red-400 transition" aria-label="Remove habit">
+              <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>`;
+        const card = li.firstElementChild;
+        const toggle = () => { h.done = !h.done; save(); renderHabits(); renderProgress(); };
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.remove')) return;
+          toggle();
+        });
+        li.querySelector('.remove').addEventListener('click', (e) => {
+          e.stopPropagation();
+          state.habits = state.habits.filter((x) => x !== h);
+          save(); renderHabits(); renderProgress(); updateAddState();
+        });
+        list.appendChild(li);
+      });
+      updateAddState();
+    }
+
+    function updateAddState() {
+      const atLimit = state.habits.length >= 8;
+      $('#addHabitWrap').classList.toggle('opacity-50', atLimit);
+      $('#addHabit').disabled = atLimit;
+      $('#newHabit').disabled = atLimit;
+      $('#habitLimit').classList.toggle('hidden', !atLimit);
+    }
+
+    function addHabit() {
+      const input = $('#newHabit');
+      const label = input.value.trim();
+      if (!label || state.habits.length >= 8) return;
+      state.habits.push({ id: 'h' + Date.now(), label, done: false });
+      input.value = '';
+      save(); renderHabits(); renderProgress();
+    }
+
+    /* ----------------------- Goals ----------------------- */
+    function renderGoals() {
+      const wrap = $('#goalList');
+      wrap.innerHTML = '';
+      state.goals.forEach((g) => {
+        const row = document.createElement('div');
+        row.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-sm font-medium text-stone2-700">${escapeHtml(g.title)}</span>
+            <span class="pct text-sm font-semibold text-sage-600">${g.progress}%</span>
+          </div>
+          <input type="range" min="0" max="100" value="${g.progress}" class="w-full" />
+          <input type="text" maxlength="120" value="${escapeAttr(g.action)}" placeholder="Next action…"
+            class="action mt-2 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />`;
+        const range = row.querySelector('input[type="range"]');
+        const pct = row.querySelector('.pct');
+        range.addEventListener('input', () => { pct.textContent = range.value + '%'; });
+        range.addEventListener('change', () => { g.progress = Number(range.value); save(); });
+        const action = row.querySelector('.action');
+        action.addEventListener('input', () => { g.action = action.value; save(); });
+        wrap.appendChild(row);
+      });
+    }
+
+    /* ----------------------- Mood log ----------------------- */
+    function renderMoods() {
+      const list = $('#moodList');
+      list.innerHTML = '';
+      $('#moodEmpty').classList.toggle('hidden', state.moods.length > 0);
+      state.moods.forEach((m) => {
+        const li = document.createElement('li');
+        li.className = 'fade-in rounded-2xl bg-cream-50 border border-cream-200 px-3.5 py-2.5';
+        li.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-medium text-stone2-700">${escapeHtml(m.mood)}</span>
+                <span class="text-xs font-medium text-sage-600 bg-sage-100 rounded-full px-2 py-0.5">Energy ${m.energy}/5</span>
+              </div>
+              ${m.note ? `<p class="mt-1 text-sm text-stone2-600 break-words">${escapeHtml(m.note)}</p>` : ''}
+              <p class="mt-1 text-xs text-stone2-400">${escapeHtml(m.when)}</p>
+            </div>
+            <button class="del shrink-0 text-stone2-200 hover:text-red-400 transition" aria-label="Delete log">
+              <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>`;
+        li.querySelector('.del').addEventListener('click', () => {
+          state.moods = state.moods.filter((x) => x !== m);
+          save(); renderMoods();
+        });
+        list.appendChild(li);
+      });
+    }
+
+    function logMood() {
+      const entry = {
+        id: Date.now(),
+        energy: $('#energyInput').value,
+        mood: $('#moodInput').value,
+        note: $('#moodNote').value.trim(),
+        when: new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      };
+      state.moods.unshift(entry);
+      $('#moodNote').value = '';
+      save(); renderMoods();
+    }
+
+    /* ----------------------- Wins / journal ----------------------- */
+    function renderWins() {
+      const list = $('#winList');
+      list.innerHTML = '';
+      $('#winEmpty').classList.toggle('hidden', state.wins.length > 0);
+      state.wins.forEach((w) => {
+        const li = document.createElement('li');
+        li.className = 'fade-in rounded-2xl bg-cream-50 border border-cream-200 px-4 py-3';
+        li.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-xs text-stone2-400 mb-1">${escapeHtml(w.when)}</p>
+              <p class="text-sm text-stone2-700 whitespace-pre-wrap break-words">${escapeHtml(w.text)}</p>
+            </div>
+            <button class="del shrink-0 text-stone2-200 hover:text-red-400 transition" aria-label="Delete entry">
+              <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>`;
+        li.querySelector('.del').addEventListener('click', () => {
+          state.wins = state.wins.filter((x) => x !== w);
+          save(); renderWins();
+        });
+        list.appendChild(li);
+      });
+    }
+
+    function saveWin() {
+      const ta = $('#winInput');
+      const text = ta.value.trim();
+      if (!text) return;
+      state.wins.unshift({
+        id: Date.now(),
+        text,
+        when: new Date().toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      });
+      ta.value = '';
+      save(); renderWins();
+    }
+
+    /* ----------------------- Weekly reflection ----------------------- */
+    let reflectTimer = null;
+    function renderReflection() {
+      $$('[data-reflect]').forEach((el) => {
+        el.value = state.reflection[el.dataset.reflect] || '';
+      });
+      const has = Object.values(state.reflection).some((v) => v && v.trim());
+      $('#reflectEmpty').classList.toggle('hidden', has);
+    }
+
+    function bindReflection() {
+      $$('[data-reflect]').forEach((el) => {
+        el.addEventListener('input', () => {
+          state.reflection[el.dataset.reflect] = el.value;
+          clearTimeout(reflectTimer);
+          reflectTimer = setTimeout(() => {
+            save();
+            const has = Object.values(state.reflection).some((v) => v && v.trim());
+            $('#reflectEmpty').classList.toggle('hidden', has);
+            const tag = $('#reflectSaved');
+            tag.style.opacity = '1';
+            setTimeout(() => (tag.style.opacity = '0'), 1200);
+          }, 500);
+        });
+      });
+    }
+
+    /* ----------------------- Focus timer ----------------------- */
+    const Timer = {
+      modes: { work: 25 * 60, break: 5 * 60 },
+      mode: 'work',
+      remaining: 25 * 60,
+      running: false,
+      tick: null,
+
+      setMode(mode, { silent } = {}) {
+        this.pause();
+        this.mode = mode;
+        this.remaining = this.modes[mode];
+        this.render();
+        if (!silent) this.hideNotice();
+        $('#timerStatus').textContent = mode === 'work' ? 'Focus session' : 'Break time';
+        $$('.timer-mode').forEach((b) => {
+          const active = b.dataset.mode === mode;
+          b.classList.toggle('bg-sage-500', active);
+          b.classList.toggle('text-white', active);
+          b.classList.toggle('bg-cream-100', !active);
+          b.classList.toggle('text-stone2-600', !active);
+        });
+      },
+
+      start() {
+        if (this.running || this.remaining <= 0) return;
+        this.running = true;
+        $('#timerStatus').textContent = this.mode === 'work' ? 'Focus session' : 'Break time';
+        this.hideNotice();
+        this.tick = setInterval(() => {
+          this.remaining--;
+          this.render();
+          if (this.remaining <= 0) this.complete();
+        }, 1000);
+      },
+
+      pause() {
+        if (!this.running) return;
+        this.running = false;
+        clearInterval(this.tick);
+        $('#timerStatus').textContent = 'Paused';
+      },
+
+      reset() {
+        this.pause();
+        this.remaining = this.modes[this.mode];
+        this.render();
+        this.hideNotice();
+        $('#timerStatus').textContent = this.mode === 'work' ? 'Focus session' : 'Break time';
+      },
+
+      complete() {
+        clearInterval(this.tick);
+        this.running = false;
+        const wasWork = this.mode === 'work';
+        $('#timerStatus').textContent = 'Session complete';
+        this.showNotice(
+          wasWork ? '🌿 Focus session complete. Time for a short break.' : '☀️ Break over. Ready for another focus session?'
+        );
+        // Auto-switch to the opposite mode, ready to start.
+        this.setMode(wasWork ? 'break' : 'work', { silent: true });
+      },
+
+      render() {
+        const m = Math.floor(Math.max(0, this.remaining) / 60);
+        const s = Math.max(0, this.remaining) % 60;
+        $('#timerDisplay').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      },
+
+      showNotice(msg) {
+        const n = $('#timerNotice');
+        n.textContent = msg;
+        n.classList.remove('hidden');
+      },
+      hideNotice() { $('#timerNotice').classList.add('hidden'); },
+    };
+
+    /* ----------------------- Export / clear ----------------------- */
+    function exportData() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `life-dashboard-${todayKey()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearData() {
+      const ok = window.confirm('Clear all dashboard data? This permanently removes your habits, logs, goals, journal and reflections from this browser. This cannot be undone.');
+      if (!ok) return;
+      localStorage.removeItem(KEY);
+      state = defaultState();
+      save();
+      renderAll();
+    }
+
+    /* ----------------------- Helpers ----------------------- */
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function escapeAttr(str) { return escapeHtml(str); }
+
+    /* ----------------------- Render + bind ----------------------- */
+    function renderAll() {
+      renderHeader();
+      renderHabits();
+      renderProgress();
+      renderGoals();
+      renderMoods();
+      renderWins();
+      renderReflection();
+    }
+
+    function bind() {
+      $('#addHabit').addEventListener('click', addHabit);
+      $('#newHabit').addEventListener('keydown', (e) => { if (e.key === 'Enter') addHabit(); });
+      $('#resetHabits').addEventListener('click', () => {
+        state.habits.forEach((h) => (h.done = false));
+        save(); renderHabits(); renderProgress();
+      });
+      $('#logMood').addEventListener('click', logMood);
+      $('#saveWin').addEventListener('click', saveWin);
+      $('#exportData').addEventListener('click', exportData);
+      $('#clearData').addEventListener('click', clearData);
+
+      $('#timerStart').addEventListener('click', () => Timer.start());
+      $('#timerPause').addEventListener('click', () => Timer.pause());
+      $('#timerReset').addEventListener('click', () => Timer.reset());
+      $$('.timer-mode').forEach((b) => b.addEventListener('click', () => Timer.setMode(b.dataset.mode)));
+
+      bindReflection();
+    }
+
+    /* ----------------------- Init ----------------------- */
+    dailyReset();
+    renderAll();
+    bind();
+    Timer.setMode('work');
+
+    // Refresh the greeting/date if the tab is left open past midnight.
+    setInterval(() => { dailyReset(); renderHeader(); renderHabits(); renderProgress(); }, 60 * 1000);
+  })();
+  </script>
+</body>
+</html>
