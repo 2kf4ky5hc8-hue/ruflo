@@ -1,21 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Life Dashboard</title>
+  <title>Life OS — Personal Command Centre</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
             cream: { 50: '#fcfbf7', 100: '#f7f4ec', 200: '#efe9db' },
             sage: { 100: '#e7ede4', 200: '#cdd9c6', 300: '#a9bd9e', 400: '#86a079', 500: '#6b8760', 600: '#55704c', 700: '#44593d' },
             stone2: { 100: '#f4f3f1', 200: '#e6e3df', 400: '#9c968d', 600: '#6b655c', 800: '#3f3b35' },
-          },
-          fontFamily: {
-            sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
           },
           boxShadow: {
             soft: '0 1px 2px rgba(63,59,53,0.04), 0 8px 24px -12px rgba(63,59,53,0.12)',
@@ -27,51 +25,71 @@
   </script>
   <style>
     html { scroll-behavior: smooth; }
-    body { background-color: #fcfbf7; }
-    /* Custom range slider styling */
-    input[type="range"] {
-      -webkit-appearance: none; appearance: none;
-      height: 6px; border-radius: 9999px;
-      background: #cdd9c6; outline: none;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; appearance: none;
-      width: 20px; height: 20px; border-radius: 9999px;
-      background: #6b8760; cursor: pointer;
-      border: 3px solid #fcfbf7;
-      box-shadow: 0 1px 4px rgba(63,59,53,0.25);
-      transition: transform .12s ease;
-    }
+    body { background-color: #fcfbf7; transition: background-color .3s ease; }
+
+    /* Range slider */
+    input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 9999px; background: #cdd9c6; outline: none; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 9999px; background: #6b8760; cursor: pointer; border: 3px solid #fcfbf7; box-shadow: 0 1px 4px rgba(63,59,53,0.25); transition: transform .12s ease; }
     input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
-    input[type="range"]::-moz-range-thumb {
-      width: 20px; height: 20px; border-radius: 9999px;
-      background: #6b8760; cursor: pointer;
-      border: 3px solid #fcfbf7;
-      box-shadow: 0 1px 4px rgba(63,59,53,0.25);
-    }
+    input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 9999px; background: #6b8760; cursor: pointer; border: 3px solid #fcfbf7; box-shadow: 0 1px 4px rgba(63,59,53,0.25); }
+
     .fade-in { animation: fadeIn .35s ease both; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     .card-hover { transition: box-shadow .25s ease, transform .25s ease; }
+
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-thumb { background: #cdd9c6; border-radius: 9999px; border: 2px solid #fcfbf7; }
+
+    /* Confetti */
+    .confetti-piece { position: fixed; width: 9px; height: 9px; top: -12px; border-radius: 2px; pointer-events: none; z-index: 60; animation: fall linear forwards; }
+    @keyframes fall { to { transform: translateY(106vh) rotate(560deg); opacity: 0.85; } }
+
+    /* ---------- Dark theme (targeted overrides for the calm palette) ---------- */
+    html.dark body { background-color: #181b16; }
+    html.dark .bg-white { background-color: #222620 !important; }
+    html.dark .bg-cream-50 { background-color: #2b302a !important; }
+    html.dark .bg-cream-100 { background-color: #313730 !important; }
+    html.dark .bg-cream-200 { background-color: #394035 !important; }
+    html.dark .border-cream-200 { border-color: #3a4136 !important; }
+    html.dark .text-stone2-800 { color: #edefe9 !important; }
+    html.dark .text-stone2-700 { color: #d9ddd1 !important; }
+    html.dark .text-stone2-600 { color: #bfc4b6 !important; }
+    html.dark .text-stone2-400 { color: #8c9283 !important; }
+    html.dark .bg-sage-100 { background-color: #33402e !important; }
+    html.dark .border-sage-200 { border-color: #44593d !important; }
+    html.dark .text-sage-700 { color: #c4e2b4 !important; }
+    html.dark .text-sage-600 { color: #aed29f !important; }
+    html.dark .bg-red-50 { background-color: #3a2626 !important; }
+    html.dark .text-red-600 { color: #f0a8a8 !important; }
+    html.dark .scoreHint { color: #8c9283 !important; }
   </style>
 </head>
 <body class="min-h-screen text-stone2-800 antialiased selection:bg-sage-200">
 
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
 
-    <!-- ============================= HEADER ============================= -->
-    <header class="mb-6">
+    <!-- ============== TOP UTILITY BAR ============== -->
+    <div class="flex items-center justify-between mb-5">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🌿</span>
+        <span class="font-semibold tracking-tight text-stone2-800">Life OS</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="saveStatus" class="text-xs font-medium text-stone2-400 px-3 py-1.5 rounded-full bg-white shadow-softer">All changes saved</span>
+        <button id="themeToggle" class="text-sm rounded-full bg-white shadow-softer px-3 py-1.5 hover:shadow-soft transition" title="Toggle light / dark">🌙</button>
+      </div>
+    </div>
+
+    <!-- ============== HEADER ============== -->
+    <header class="mb-5">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        <!-- Greeting & date -->
         <div class="lg:col-span-2 bg-white rounded-3xl shadow-soft p-6 sm:p-8 card-hover">
           <p id="dateLine" class="text-sm font-medium text-stone2-400 tracking-wide"></p>
           <h1 id="greeting" class="mt-1 text-3xl sm:text-4xl font-semibold text-stone2-800"></h1>
           <p id="motivation" class="mt-3 text-stone2-600 text-[15px] leading-relaxed max-w-xl"></p>
         </div>
 
-        <!-- Weather card -->
+        <!-- Weather -->
         <div class="bg-gradient-to-br from-sage-400 to-sage-600 rounded-3xl shadow-soft p-6 text-white flex flex-col justify-between card-hover">
           <div class="flex items-start justify-between">
             <div class="min-w-0">
@@ -84,10 +102,10 @@
             </div>
             <span id="weatherIcon" class="text-4xl leading-none">⛅</span>
           </div>
+          <div id="weatherForecast" class="mt-4 grid grid-cols-3 gap-2"></div>
           <div id="weatherEditWrap" class="mt-4 hidden">
             <div class="flex gap-2">
-              <input id="weatherInput" type="text" placeholder="Enter a city…"
-                class="flex-1 rounded-lg bg-white/15 placeholder-white/60 text-white text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/40" />
+              <input id="weatherInput" type="text" placeholder="Enter a city…" class="flex-1 rounded-lg bg-white/15 placeholder-white/60 text-white text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-white/40" />
               <button id="weatherGo" class="shrink-0 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 transition">Set</button>
             </div>
             <p id="weatherError" class="mt-1.5 text-[12px] text-sage-100/90 min-h-[16px]"></p>
@@ -95,179 +113,356 @@
           <p id="weatherHint" class="mt-4 text-[12px] text-sage-100/90">Tap the location to change it.</p>
         </div>
       </div>
+
+      <!-- Command / quick add -->
+      <div class="mt-4 bg-white rounded-2xl shadow-softer p-2 flex items-center gap-2 card-hover">
+        <span class="pl-2 text-stone2-400">⌘</span>
+        <input id="commandBox" type="text" placeholder="Quick add — try “+win shipped the deck”, “+task call bank”, “+habit Stretch”, “+person Call mum”"
+          class="flex-1 bg-transparent text-sm px-1 py-2 focus:outline-none placeholder-stone2-400" />
+        <button id="commandRun" class="shrink-0 rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-4 py-2 transition">Add</button>
+      </div>
     </header>
 
-    <!-- ===================== TOP PROGRESS BAR ===================== -->
-    <section class="bg-white rounded-3xl shadow-soft p-6 mb-6 card-hover">
+    <!-- ============== DAILY SCORE ============== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mb-5 card-hover">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-base font-semibold text-stone2-800">Today's Progress</h2>
-        <span id="progressLabel" class="text-sm font-medium text-stone2-600">0 of 0 complete</span>
+        <div class="flex items-center gap-3">
+          <h2 class="text-base font-semibold text-stone2-800">Today's Score</h2>
+          <button id="scoreInfoBtn" class="text-xs font-medium text-stone2-400 hover:text-sage-600 underline-offset-2 hover:underline transition">How this works</button>
+        </div>
+        <span id="scoreLabel" class="text-2xl font-semibold text-sage-600">0%</span>
       </div>
       <div class="w-full h-3 rounded-full bg-cream-200 overflow-hidden">
-        <div id="progressBar" class="h-full rounded-full bg-gradient-to-r from-sage-400 to-sage-600 transition-all duration-500" style="width:0%"></div>
+        <div id="scoreBar" class="h-full rounded-full bg-gradient-to-r from-sage-400 to-sage-600 transition-all duration-700" style="width:0%"></div>
       </div>
-      <p id="progressMessage" class="mt-3 text-sm text-sage-600 font-medium min-h-[20px]"></p>
+      <p id="scoreMessage" class="mt-3 text-sm text-sage-600 font-medium min-h-[20px]"></p>
+      <div id="scoreInfo" class="hidden mt-4 rounded-2xl bg-cream-50 border border-cream-200 p-4 text-sm text-stone2-600">
+        <p class="font-medium text-stone2-700 mb-2">How your daily score is calculated</p>
+        <ul id="scoreBreakdown" class="space-y-1.5"></ul>
+      </div>
     </section>
 
-    <!-- ========================= MAIN GRID ========================= -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- ============== TODAY ROW: priorities / next action / sleep ============== -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
 
-      <!-- ===================== HABITS TRACKER ===================== -->
+      <!-- Top 3 priorities -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>📌</span> Top Priorities</h2>
+        <div class="flex gap-2">
+          <input id="priorityInput" type="text" maxlength="80" placeholder="Add a key priority…" class="flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
+          <button id="priorityAdd" class="shrink-0 rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-4 py-2.5 transition">Add</button>
+        </div>
+        <ul id="priorityList" class="mt-4 space-y-2"></ul>
+        <p id="priorityEmpty" class="mt-4 text-sm text-stone2-400 text-center">No priorities set for today.</p>
+      </section>
+
+      <!-- Next best action -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover flex flex-col">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>🧭</span> Next Best Action</h2>
+        <div class="flex-1 flex flex-col justify-center">
+          <p id="suggestionText" class="text-stone2-700 text-[15px] leading-relaxed"></p>
+          <p id="suggestionWhy" class="mt-2 text-xs text-stone2-400"></p>
+        </div>
+      </section>
+
+      <!-- Sleep -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>😴</span> Sleep &amp; Recovery</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs font-medium text-stone2-400">Hours slept</span>
+            <input id="sleepHours" type="number" min="0" max="24" step="0.5" placeholder="7.5" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300" />
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-stone2-400">Quality</span>
+            <select id="sleepQuality" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option value="1">1 · Poor</option><option value="2">2 · Restless</option><option value="3" selected>3 · Okay</option><option value="4">4 · Good</option><option value="5">5 · Deep</option>
+            </select>
+          </label>
+        </div>
+        <button id="sleepSave" class="mt-3 w-full rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium py-2.5 transition">Save sleep</button>
+        <div class="mt-4 text-sm space-y-1">
+          <p class="text-stone2-600">Last night: <span id="sleepLast" class="font-medium text-stone2-800">—</span></p>
+          <p class="text-stone2-600">7-day average: <span id="sleepAvg" class="font-medium text-stone2-800">—</span></p>
+          <p id="sleepMsg" class="text-sage-600 font-medium"></p>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============== MAIN GRID ============== -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+      <!-- HABITS -->
       <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>🌱</span> Daily Habits</h2>
           <button id="resetHabits" class="text-xs font-medium text-stone2-400 hover:text-sage-600 transition px-3 py-1.5 rounded-full hover:bg-cream-100">Reset today</button>
         </div>
         <ul id="habitList" class="space-y-2.5"></ul>
-
         <div id="addHabitWrap" class="mt-4 flex gap-2">
-          <input id="newHabit" type="text" maxlength="40" placeholder="Add a custom habit…"
-            class="flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300 focus:border-transparent" />
+          <input id="newHabit" type="text" maxlength="40" placeholder="Add a custom habit…" class="flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
           <button id="addHabit" class="shrink-0 rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-4 py-2.5 transition">Add</button>
         </div>
-        <p id="habitLimit" class="mt-2 text-xs text-stone2-400 hidden">Maximum of 8 habits reached.</p>
+        <p id="habitLimit" class="mt-2 text-xs text-stone2-400 hidden">Maximum of 10 habits reached.</p>
       </section>
 
-      <!-- ===================== FOCUS TIMER ===================== -->
+      <!-- FOCUS TIMER -->
       <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
         <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>⏳</span> Focus Timer</h2>
-
-        <div class="flex justify-center gap-2 mb-5">
-          <button data-mode="work" class="timer-mode rounded-full px-4 py-1.5 text-sm font-medium transition">Work · 25m</button>
-          <button data-mode="break" class="timer-mode rounded-full px-4 py-1.5 text-sm font-medium transition">Break · 5m</button>
+        <div class="flex justify-center gap-2 mb-5 flex-wrap">
+          <button data-mode="work" class="timer-mode rounded-full px-4 py-1.5 text-sm font-medium transition">Work · 25</button>
+          <button data-mode="short" class="timer-mode rounded-full px-4 py-1.5 text-sm font-medium transition">Short · 5</button>
+          <button data-mode="long" class="timer-mode rounded-full px-4 py-1.5 text-sm font-medium transition">Long · 15</button>
         </div>
-
         <div class="text-center">
           <div id="timerDisplay" class="text-6xl sm:text-7xl font-semibold tracking-tight text-stone2-800 tabular-nums">25:00</div>
           <p id="timerStatus" class="mt-2 text-sm font-medium text-sage-600">Focus session</p>
         </div>
-
-        <div class="mt-6 flex items-center justify-center gap-3">
-          <button id="timerStart" class="rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-6 py-2.5 transition">Start</button>
-          <button id="timerPause" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-6 py-2.5 transition">Pause</button>
-          <button id="timerReset" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-6 py-2.5 transition">Reset</button>
+        <div class="mt-6 flex items-center justify-center gap-2 flex-wrap">
+          <button id="timerStart" class="rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-5 py-2.5 transition">Start</button>
+          <button id="timerPause" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-5 py-2.5 transition">Pause</button>
+          <button id="timerReset" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-5 py-2.5 transition">Reset</button>
+          <button id="timerSkip" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-5 py-2.5 transition">Skip</button>
         </div>
-
         <div id="timerNotice" class="mt-5 hidden rounded-2xl bg-sage-100 border border-sage-200 text-sage-700 text-sm font-medium px-4 py-3 text-center fade-in"></div>
+        <div class="mt-5 grid grid-cols-3 gap-2 text-center">
+          <div class="rounded-xl bg-cream-50 border border-cream-200 py-2.5"><p id="focusSessions" class="text-lg font-semibold text-stone2-800">0</p><p class="text-[11px] text-stone2-400">sessions</p></div>
+          <div class="rounded-xl bg-cream-50 border border-cream-200 py-2.5"><p id="focusToday" class="text-lg font-semibold text-stone2-800">0</p><p class="text-[11px] text-stone2-400">min today</p></div>
+          <div class="rounded-xl bg-cream-50 border border-cream-200 py-2.5"><p id="focusWeek" class="text-lg font-semibold text-stone2-800">0</p><p class="text-[11px] text-stone2-400">min / week</p></div>
+        </div>
+        <ul id="focusHistory" class="mt-4 space-y-1.5 max-h-40 overflow-y-auto pr-1"></ul>
+        <p id="focusEmpty" class="mt-3 text-sm text-stone2-400 text-center">No focus sessions yet.</p>
       </section>
 
-      <!-- ===================== MOOD & ENERGY LOG ===================== -->
+      <!-- MOOD & ENERGY -->
       <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
-        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>💫</span> Mood &amp; Energy</h2>
-
-        <div class="grid grid-cols-2 gap-3">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>💫</span> Mood, Energy &amp; Stress</h2>
+        <div class="grid grid-cols-3 gap-3">
           <label class="block">
-            <span class="text-xs font-medium text-stone2-400">Energy</span>
-            <select id="energyInput" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
-              <option value="1">1 · Drained</option>
-              <option value="2">2 · Low</option>
-              <option value="3" selected>3 · Steady</option>
-              <option value="4">4 · High</option>
-              <option value="5">5 · Peak</option>
+            <span class="text-xs font-medium text-stone2-400">Mood</span>
+            <select id="moodInput" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-2.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option>🙂 Good</option><option>😐 Neutral</option><option>😔 Low</option><option>😤 Stressed</option><option>🔥 Driven</option><option>😴 Tired</option><option>😌 Calm</option>
             </select>
           </label>
           <label class="block">
-            <span class="text-xs font-medium text-stone2-400">Mood</span>
-            <select id="moodInput" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
-              <option value="🙂 Good">🙂 Good</option>
-              <option value="😐 Neutral">😐 Neutral</option>
-              <option value="😔 Low">😔 Low</option>
-              <option value="😤 Stressed">😤 Stressed</option>
-              <option value="🔥 Driven">🔥 Driven</option>
+            <span class="text-xs font-medium text-stone2-400">Energy</span>
+            <select id="energyInput" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-2.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-stone2-400">Stress</span>
+            <select id="stressInput" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-2.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
             </select>
           </label>
         </div>
-        <input id="moodNote" type="text" maxlength="120" placeholder="Optional note…"
-          class="mt-3 w-full rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
+        <input id="moodNote" type="text" maxlength="120" placeholder="Optional note…" class="mt-3 w-full rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
         <button id="logMood" class="mt-3 w-full rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium py-2.5 transition">Log mood</button>
-
-        <ul id="moodList" class="mt-4 space-y-2 max-h-64 overflow-y-auto pr-1"></ul>
+        <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+          <div class="rounded-xl bg-cream-50 border border-cream-200 py-2.5"><p id="avgEnergy" class="text-lg font-semibold text-stone2-800">—</p><p class="text-[11px] text-stone2-400">avg energy</p></div>
+          <div class="rounded-xl bg-cream-50 border border-cream-200 py-2.5"><p id="avgStress" class="text-lg font-semibold text-stone2-800">—</p><p class="text-[11px] text-stone2-400">avg stress</p></div>
+          <div class="rounded-xl bg-cream-50 border border-cream-200 py-2.5"><p id="commonMood" class="text-lg font-semibold text-stone2-800">—</p><p class="text-[11px] text-stone2-400">top mood</p></div>
+        </div>
+        <ul id="moodList" class="mt-4 space-y-2 max-h-56 overflow-y-auto pr-1"></ul>
         <p id="moodEmpty" class="mt-4 text-sm text-stone2-400 text-center">No mood logs yet.</p>
       </section>
 
-      <!-- ===================== CORE GOALS ===================== -->
+      <!-- MONEY / ADMIN -->
       <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
-        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>🎯</span> Core Goals</h2>
-        <div id="goalList" class="space-y-5"></div>
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>💷</span> Money &amp; Admin Check-In</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs font-medium text-stone2-400">Money stress</span>
+            <select id="moneyStress" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option value="1">1 · Calm</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5 · High</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-stone2-400">Checked invoices / payments?</span>
+            <select id="moneyChecked" class="mt-1 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300">
+              <option value="no">No</option><option value="yes">Yes</option>
+            </select>
+          </label>
+        </div>
+        <input id="moneyPriority" type="text" maxlength="120" placeholder="One financial priority for today…" class="mt-3 w-full rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
+        <button id="moneySave" class="mt-3 w-full rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium py-2.5 transition">Save check-in</button>
+        <div class="mt-4 text-sm space-y-1">
+          <p class="text-stone2-600">Today: <span id="moneyStatus" class="font-medium text-stone2-800">Not logged yet.</span></p>
+          <p class="text-stone2-600">7-day money stress: <span id="moneyAvg" class="font-medium text-stone2-800">—</span></p>
+        </div>
       </section>
 
+      <!-- PEOPLE -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>👥</span> People &amp; Relationships</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input id="personName" type="text" maxlength="40" placeholder="Person…" class="rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
+          <input id="personReason" type="text" maxlength="60" placeholder="Reason (e.g. call, reply)…" class="rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />
+        </div>
+        <button id="personAdd" class="mt-2 w-full rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium py-2.5 transition">Add check-in</button>
+        <ul id="peopleList" class="mt-4 space-y-2"></ul>
+        <p id="peopleEmpty" class="mt-4 text-sm text-stone2-400 text-center">No check-ins for today.</p>
+      </section>
+
+      <!-- JOURNAL / WINS (spans both columns) -->
+      <section class="bg-white rounded-3xl shadow-soft p-6 card-hover lg:col-span-2">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>✨</span> Today's Wins</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <textarea id="winInput" rows="3" maxlength="1000" placeholder="What went well today? What did you handle better than before?" class="w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
+            <div class="mt-2 flex justify-end">
+              <button id="saveWin" class="rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-5 py-2.5 transition">Save entry</button>
+            </div>
+            <ul id="winList" class="mt-3 space-y-3 max-h-72 overflow-y-auto pr-1"></ul>
+            <p id="winEmpty" class="mt-3 text-sm text-stone2-400 text-center">No wins saved yet.</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-stone2-600">What needs attention tomorrow?</label>
+            <textarea id="tomorrowInput" rows="3" placeholder="One or two things to carry into tomorrow…" class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
+            <p class="mt-1 text-xs text-stone2-400">Saves automatically.</p>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- ===================== TODAY'S WINS ===================== -->
-    <section class="bg-white rounded-3xl shadow-soft p-6 mt-6 card-hover">
-      <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4"><span>✨</span> Today's Wins</h2>
-      <textarea id="winInput" rows="3" maxlength="1000"
-        placeholder="What went well today? What did you handle better than before?"
-        class="w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
-      <div class="mt-3 flex justify-end">
-        <button id="saveWin" class="rounded-xl bg-sage-500 hover:bg-sage-600 text-white text-sm font-medium px-5 py-2.5 transition">Save entry</button>
+    <!-- ============== GOALS ============== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mt-5 card-hover">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>🎯</span> Core Goals</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-stone2-400">Avg <b id="goalAvg" class="text-sage-600">0%</b> · <span id="goalActive">0</span> active · <span id="goalDone">0</span> done</span>
+          <button id="goalAdd" class="text-sm rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 font-medium px-4 py-2 transition">+ Add goal</button>
+        </div>
       </div>
-      <ul id="winList" class="mt-4 space-y-3"></ul>
-      <p id="winEmpty" class="mt-4 text-sm text-stone2-400 text-center">No journal entries saved yet.</p>
+      <div id="goalList" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- ===================== WEEKLY REFLECTION ===================== -->
-    <section class="bg-white rounded-3xl shadow-soft p-6 mt-6 card-hover">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>🪞</span> Weekly Reflection</h2>
-        <span id="reflectSaved" class="text-xs font-medium text-sage-600 opacity-0 transition-opacity">Saved</span>
+    <!-- ============== INSIGHTS ============== -->
+    <section class="mt-5">
+      <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2 mb-4 px-1"><span>📊</span> Insights · last 7 days</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <div class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+          <p class="text-sm font-medium text-stone2-600 mb-1">Habit completion</p>
+          <p id="insHabitPct" class="text-3xl font-semibold text-sage-600">0%</p>
+          <div id="insHabitBlocks" class="mt-3 flex gap-1.5"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+          <p class="text-sm font-medium text-stone2-600 mb-1">Mood &amp; energy trend</p>
+          <div id="insMoodBars" class="mt-3 flex items-end gap-1.5 h-20"></div>
+          <p id="insMoodAvg" class="mt-2 text-xs text-stone2-400"></p>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+          <p class="text-sm font-medium text-stone2-600 mb-1">Focus minutes</p>
+          <div class="mt-2 flex items-baseline gap-4">
+            <div><p id="insFocusToday" class="text-2xl font-semibold text-stone2-800">0</p><p class="text-[11px] text-stone2-400">today</p></div>
+            <div><p id="insFocusWeek" class="text-2xl font-semibold text-stone2-800">0</p><p class="text-[11px] text-stone2-400">this week</p></div>
+          </div>
+          <p id="insFocusBest" class="mt-2 text-xs text-stone2-400"></p>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+          <p class="text-sm font-medium text-stone2-600 mb-2">Energy vs stress</p>
+          <div class="space-y-2">
+            <div><div class="flex justify-between text-xs text-stone2-400 mb-1"><span>Energy</span><span id="insEnergyVal">—</span></div><div class="h-2 rounded-full bg-cream-200 overflow-hidden"><div id="insEnergyBar" class="h-full bg-sage-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
+            <div><div class="flex justify-between text-xs text-stone2-400 mb-1"><span>Stress</span><span id="insStressVal">—</span></div><div class="h-2 rounded-full bg-cream-200 overflow-hidden"><div id="insStressBar" class="h-full bg-amber-400 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-soft p-6 card-hover flex flex-col justify-center">
+          <p class="text-sm font-medium text-stone2-600 mb-1">Current streak</p>
+          <p id="insStreak" class="text-4xl font-semibold text-sage-600">0</p>
+          <p class="text-xs text-stone2-400 mt-1">days scoring above 60%</p>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-soft p-6 card-hover">
+          <p class="text-sm font-medium text-stone2-600 mb-2">Life balance</p>
+          <div id="insBalance" class="space-y-2"></div>
+        </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <label class="block">
-          <span class="text-sm font-medium text-stone2-600">What moved forward this week?</span>
-          <textarea data-reflect="forward" rows="4"
-            class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
-        </label>
-        <label class="block">
-          <span class="text-sm font-medium text-stone2-600">What drained my energy?</span>
-          <textarea data-reflect="drained" rows="4"
-            class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
-        </label>
-        <label class="block">
-          <span class="text-sm font-medium text-stone2-600">What needs attention next week?</span>
-          <textarea data-reflect="attention" rows="4"
-            class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea>
-        </label>
+    </section>
+
+    <!-- ============== WEEKLY REFLECTION ============== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mt-5 card-hover">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>🪞</span> Weekly Reflection <span id="weekLabel" class="text-xs font-normal text-stone2-400"></span></h2>
+        <span id="reflectSaved" class="text-xs font-medium text-sage-600"></span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <label class="block"><span class="text-sm font-medium text-stone2-600">What moved forward this week?</span><textarea data-reflect="forward" rows="3" class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea></label>
+        <label class="block"><span class="text-sm font-medium text-stone2-600">What drained my energy?</span><textarea data-reflect="drained" rows="3" class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea></label>
+        <label class="block"><span class="text-sm font-medium text-stone2-600">What needs attention next week?</span><textarea data-reflect="attention" rows="3" class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea></label>
+        <label class="block"><span class="text-sm font-medium text-stone2-600">What am I avoiding?</span><textarea data-reflect="avoiding" rows="3" class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea></label>
+        <label class="block"><span class="text-sm font-medium text-stone2-600">Main win from this week?</span><textarea data-reflect="mainWin" rows="3" class="mt-2 w-full rounded-2xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"></textarea></label>
       </div>
       <p id="reflectEmpty" class="mt-3 text-sm text-stone2-400">No weekly reflection saved yet.</p>
     </section>
 
-    <!-- ===================== SETTINGS / TOOLS ===================== -->
-    <section class="bg-white rounded-3xl shadow-softer p-6 mt-6 mb-4 border border-cream-200">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <!-- ============== HISTORY ============== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mt-5 card-hover">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>🗓️</span> History</h2>
+        <input id="historyDate" type="date" class="rounded-xl border border-cream-200 bg-cream-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300" />
+      </div>
+      <div id="historyView" class="text-sm"></div>
+    </section>
+
+    <!-- ============== DATA SETTINGS ============== -->
+    <section class="bg-white rounded-3xl shadow-softer p-6 mt-5 mb-4 border border-cream-200">
+      <div class="flex flex-col gap-4">
         <div>
           <h2 class="text-base font-semibold text-stone2-800">Your data</h2>
-          <p class="text-sm text-stone2-400 mt-0.5">Everything is stored privately in this browser.</p>
+          <p class="text-sm text-stone2-400 mt-0.5">Stored privately in this browser. Back it up with Export — it's never trapped.</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <button id="exportData" class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-4 py-2.5 transition">Export data</button>
-          <button id="clearData" class="rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium px-4 py-2.5 transition">Clear all data</button>
+          <label class="rounded-xl bg-cream-100 hover:bg-cream-200 text-stone2-600 text-sm font-medium px-4 py-2.5 transition cursor-pointer">
+            Import data
+            <input id="importData" type="file" accept="application/json,.json" class="hidden" />
+          </label>
+          <button id="clearToday" class="rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium px-4 py-2.5 transition">Clear today</button>
+          <button id="clearData" class="rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium px-4 py-2.5 transition">Clear everything</button>
         </div>
+        <p id="importMsg" class="text-sm text-stone2-400"></p>
       </div>
     </section>
 
-    <footer class="text-center text-xs text-stone2-400 pb-8">
-      Life Dashboard · your calm command centre
-    </footer>
+    <footer class="text-center text-xs text-stone2-400 pb-8">Life OS · your calm command centre</footer>
   </div>
 
   <script>
   /* ===================================================================
-     Life Dashboard — vanilla JS + localStorage
-     Storage key namespace: ld_*
+     LIFE OS — Personal command centre
+     Single-file app · vanilla JS · localStorage (date-keyed records)
   =================================================================== */
   (function () {
     'use strict';
 
-    const KEY = 'lifeDashboard.v1';
-    const $ = (sel, ctx = document) => ctx.querySelector(sel);
-    const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+    const KEY = 'lifeOS.v2';
+    const LEGACY_KEY = 'lifeDashboard.v1';
+    const $ = (s, c = document) => c.querySelector(s);
+    const $$ = (s, c = document) => Array.from(c.querySelectorAll(s));
 
-    const todayKey = () => {
-      const d = new Date();
+    /* ---------------- Date helpers ---------------- */
+    function dateKey(d = new Date()) {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
+    }
+    function parseKey(k) { return new Date(k + 'T00:00:00'); }
+    function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+    function lastNKeys(n) { const out = []; for (let i = n - 1; i >= 0; i--) out.push(dateKey(addDays(new Date(), -i))); return out; }
+    function isoWeek(date = new Date()) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = (d.getUTCDay() + 6) % 7;
+      d.setUTCDate(d.getUTCDate() - dayNum + 3);
+      const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+      const week = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+      return d.getUTCFullYear() + '-W' + String(week).padStart(2, '0');
+    }
 
+    /* ---------------- Constants ---------------- */
     const DEFAULT_HABITS = [
       { id: 'water', label: 'Drink water' },
       { id: 'exercise', label: 'Exercise' },
@@ -275,195 +470,334 @@
       { id: 'read', label: 'Read' },
       { id: 'journal', label: 'Journal' },
     ];
-
     const DEFAULT_GOALS = [
-      { id: 'health', title: 'Health & Energy', progress: 0, action: '' },
-      { id: 'business', title: 'Business & Money', progress: 0, action: '' },
-      { id: 'family', title: 'Family & Relationships', progress: 0, action: '' },
+      { id: 'health', title: 'Health & Energy', progress: 0, action: '', deadline: '', priority: 'High', completed: false, updatedAt: '' },
+      { id: 'business', title: 'Business & Money', progress: 0, action: '', deadline: '', priority: 'High', completed: false, updatedAt: '' },
+      { id: 'family', title: 'Family & Relationships', progress: 0, action: '', deadline: '', priority: 'Medium', completed: false, updatedAt: '' },
     ];
-
-    const MOTIVATIONS = [
-      'Small steps, taken daily, become a different life.',
-      'Calm mind, clear focus. One thing at a time.',
-      'You don\'t have to do it all — just the next right thing.',
-      'Progress is quiet. Keep showing up.',
-      'Discipline is choosing what you want most over what you want now.',
-      'Energy follows attention. Spend it well today.',
-      'The standard you walk past is the standard you accept.',
-      'Be where your feet are. Today is enough.',
-      'Consistency outperforms intensity. Stay steady.',
-      'A peaceful pace still reaches the destination.',
+    const QUOTES = [
+      'Win the day quietly.', 'Small moves. Big direction.', 'Keep the main thing the main thing.',
+      'Control the controllables.', 'Momentum beats mood.', 'Be where your feet are.',
+      'Consistency outperforms intensity.', 'Progress is quiet. Keep showing up.',
+      'Energy follows attention. Spend it well.', 'Discipline is choosing what you want most over what you want now.',
     ];
+    const MODE_MIN = { work: 25, short: 5, long: 15 };
+    const MODE_LABEL = { work: 'Focus session', short: 'Short break', long: 'Long break' };
 
-    /* ----------------------- State ----------------------- */
-    const defaultState = () => ({
-      date: todayKey(),
-      habits: DEFAULT_HABITS.map((h) => ({ ...h, done: false })),
-      goals: DEFAULT_GOALS.map((g) => ({ ...g })),
-      moods: [],
-      wins: [],
-      reflection: { forward: '', drained: '', attention: '' },
-      weather: { name: 'London', lat: 51.5074, lon: -0.1278 },
-    });
-
-    let state = load();
-
-    function load() {
-      try {
-        const raw = localStorage.getItem(KEY);
-        if (!raw) return defaultState();
-        const parsed = JSON.parse(raw);
-        return migrate(parsed);
-      } catch (e) {
-        console.warn('Could not load saved data, starting fresh.', e);
-        return defaultState();
-      }
+    /* ---------------- State + persistence ---------------- */
+    function blankRecord() {
+      return { habitsCompleted: {}, moodLogs: [], focusSessions: [], journalEntries: [], tomorrow: '', sleep: null, money: null, people: [], priorities: [], notes: '' };
+    }
+    function defaultState() {
+      return {
+        version: 2,
+        settings: { theme: 'light', weather: { name: 'London', lat: 51.5074, lon: -0.1278 } },
+        habits: DEFAULT_HABITS.map((h) => ({ ...h, custom: false })),
+        dailyRecords: {},
+        goals: DEFAULT_GOALS.map((g) => ({ ...g })),
+        weeklyReflections: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
     }
 
+    let state = loadState();
+    let lastSavedAt = null;
+
+    function loadState() {
+      try {
+        const rawV2 = localStorage.getItem(KEY);
+        if (rawV2) return migrate(JSON.parse(rawV2));
+        const rawV1 = localStorage.getItem(LEGACY_KEY);
+        if (rawV1) return migrateFromV1(JSON.parse(rawV1));
+      } catch (e) { console.warn('Load failed, starting fresh.', e); }
+      return defaultState();
+    }
+
+    // Forward-compatible migration: fill any missing fields without losing data.
     function migrate(s) {
       const base = defaultState();
-      s = Object.assign(base, s);
+      s = Object.assign({}, base, s);
+      s.settings = Object.assign({}, base.settings, s.settings || {});
+      if (!s.settings.weather || typeof s.settings.weather.lat !== 'number') s.settings.weather = base.settings.weather;
       if (!Array.isArray(s.habits) || !s.habits.length) s.habits = base.habits;
-      if (!Array.isArray(s.goals) || !s.goals.length) s.goals = base.goals;
-      if (!Array.isArray(s.moods)) s.moods = [];
-      if (!Array.isArray(s.wins)) s.wins = [];
-      if (!s.reflection) s.reflection = base.reflection;
-      if (!s.weather || typeof s.weather.lat !== 'number') s.weather = base.weather;
+      if (!s.dailyRecords || typeof s.dailyRecords !== 'object') s.dailyRecords = {};
+      Object.keys(s.dailyRecords).forEach((k) => { s.dailyRecords[k] = Object.assign(blankRecord(), s.dailyRecords[k]); });
+      if (!Array.isArray(s.goals)) s.goals = base.goals;
+      s.goals = s.goals.map((g) => Object.assign({ deadline: '', priority: 'Medium', completed: false, updatedAt: '', action: '' }, g));
+      if (!s.weeklyReflections) s.weeklyReflections = {};
+      s.version = 2;
+      return s;
+    }
+
+    // Best-effort upgrade from the earlier v1 dashboard.
+    function migrateFromV1(old) {
+      const s = defaultState();
+      if (old.weather) s.settings.weather = old.weather;
+      if (Array.isArray(old.habits) && old.habits.length) {
+        s.habits = old.habits.map((h) => ({ id: h.id, label: h.label, custom: !DEFAULT_HABITS.some((d) => d.id === h.id) }));
+      }
+      const rec = blankRecord();
+      (old.habits || []).forEach((h) => { if (h.done) rec.habitsCompleted[h.id] = true; });
+      (old.moods || []).forEach((m) => rec.moodLogs.push({ id: m.id || Date.now() + Math.random(), time: m.when || '', mood: m.mood || '', energy: Number(m.energy) || 3, stress: 3, note: m.note || '' }));
+      (old.wins || []).forEach((w) => rec.journalEntries.push({ id: w.id || Date.now() + Math.random(), time: w.when || '', text: w.text || '' }));
+      s.dailyRecords[dateKey()] = rec;
+      if (Array.isArray(old.goals)) s.goals = old.goals.map((g) => ({ id: g.id, title: g.title, progress: g.progress || 0, action: g.action || '', deadline: '', priority: 'Medium', completed: false, updatedAt: '' }));
+      if (old.reflection) s.weeklyReflections[isoWeek()] = Object.assign({ forward: '', drained: '', attention: '', avoiding: '', mainWin: '', updatedAt: new Date().toISOString() }, old.reflection);
       return s;
     }
 
     function save() {
-      try {
-        localStorage.setItem(KEY, JSON.stringify(state));
-      } catch (e) {
-        console.warn('Could not save data.', e);
-      }
+      state.updatedAt = new Date().toISOString();
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn('Save failed.', e); }
+      lastSavedAt = Date.now();
+      renderSaveStatus('Saved just now');
     }
 
-    // Daily reset: if stored date is not today, clear habit completion.
-    function dailyReset() {
-      if (state.date !== todayKey()) {
-        state.date = todayKey();
-        state.habits.forEach((h) => (h.done = false));
-        save();
-      }
+    // Get today's record, creating it on first write of the day.
+    function today() {
+      const k = dateKey();
+      if (!state.dailyRecords[k]) state.dailyRecords[k] = blankRecord();
+      return state.dailyRecords[k];
+    }
+    function recordFor(k) { return state.dailyRecords[k] || null; }
+
+    /* ---------------- Small utils ---------------- */
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function avg(arr) { const v = arr.filter((n) => typeof n === 'number' && !isNaN(n)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; }
+    function clampPct(n) { return Math.max(0, Math.min(100, Math.round(n))); }
+    function nowTime() { return new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
+
+    /* ---------------- Calculations ---------------- */
+    function focusMinutes(rec) { return rec ? rec.focusSessions.filter((s) => s.mode === 'work' && s.completed).reduce((a, s) => a + s.duration, 0) : 0; }
+    function weekFocusMinutes() {
+      const wk = isoWeek();
+      return Object.keys(state.dailyRecords).filter((k) => isoWeek(parseKey(k)) === wk).reduce((a, k) => a + focusMinutes(state.dailyRecords[k]), 0);
     }
 
-    /* ----------------------- Header ----------------------- */
+    function dailyScore(k = dateKey()) {
+      const rec = recordFor(k);
+      const parts = {};
+      const habitTotal = state.habits.length;
+      const habitDone = rec ? Object.values(rec.habitsCompleted).filter(Boolean).length : 0;
+      parts.Habits = habitTotal ? (habitDone / habitTotal) * 40 : 0;
+      parts.Focus = Math.min(focusMinutes(rec) / 50, 1) * 15;
+      parts['Mood logged'] = rec && rec.moodLogs.length ? 15 : 0;
+      parts['Journal / wins'] = rec && rec.journalEntries.length ? 15 : 0;
+      parts['Goals updated'] = state.goals.some((g) => g.updatedAt && g.updatedAt.slice(0, 10) === k) ? 10 : 0;
+      parts['Money check-in'] = rec && rec.money ? 5 : 0;
+      const total = clampPct(Object.values(parts).reduce((a, b) => a + b, 0));
+      return { total, parts };
+    }
+
+    function scoreMessage(p) {
+      if (p === 100) return 'Clean sweep. Excellent.';
+      if (p >= 76) return 'Strong day.';
+      if (p >= 51) return 'Solid day forming.';
+      if (p >= 26) return "You've got movement.";
+      return 'Slow start. Still recoverable.';
+    }
+
+    function habitStreak(id) {
+      let streak = 0, i = 0;
+      const t = recordFor(dateKey());
+      if (!(t && t.habitsCompleted[id])) i = 1; // today not done → measure run up to yesterday
+      for (; ; i++) {
+        const rec = recordFor(dateKey(addDays(new Date(), -i)));
+        if (rec && rec.habitsCompleted[id]) streak++; else break;
+      }
+      return streak;
+    }
+    function habitBest(id) {
+      const keys = Object.keys(state.dailyRecords).sort();
+      if (!keys.length) return 0;
+      let best = 0, run = 0, d = parseKey(keys[0]);
+      const end = dateKey();
+      while (dateKey(d) <= end) {
+        const rec = recordFor(dateKey(d));
+        if (rec && rec.habitsCompleted[id]) { run++; best = Math.max(best, run); } else run = 0;
+        d = addDays(d, 1);
+      }
+      return best;
+    }
+    function habit7day(id) {
+      const keys = lastNKeys(7);
+      let done = 0;
+      keys.forEach((k) => { const r = recordFor(k); if (r && r.habitsCompleted[id]) done++; });
+      return clampPct((done / 7) * 100);
+    }
+    function habit7dayAll() {
+      if (!state.habits.length) return 0;
+      const ratios = lastNKeys(7).map((k) => {
+        const r = recordFor(k); if (!r) return 0;
+        const d = Object.values(r.habitsCompleted).filter(Boolean).length;
+        return d / state.habits.length;
+      });
+      return clampPct(avg(ratios) * 100);
+    }
+
+    function scoreStreak() {
+      let streak = 0, i = 0;
+      // Include today only if it's already above 60.
+      if (dailyScore(dateKey()).total <= 60) i = 1;
+      for (; ; i++) {
+        const k = dateKey(addDays(new Date(), -i));
+        if (!recordFor(k)) break;
+        if (dailyScore(k).total > 60) streak++; else break;
+      }
+      return streak;
+    }
+
+    /* ===========================================================
+       RENDERERS
+    =========================================================== */
     function renderHeader() {
       const now = new Date();
-      $('#dateLine').textContent = now.toLocaleDateString(undefined, {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      });
+      $('#dateLine').textContent = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       const h = now.getHours();
-      const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-      $('#greeting').textContent = part + '.';
-      // Deterministic "daily" motivation based on the date, so it changes each day.
-      const seed = Number(todayKey().replace(/-/g, '')) % MOTIVATIONS.length;
-      $('#motivation').textContent = MOTIVATIONS[seed];
+      $('#greeting').textContent = (h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + '.';
+      $('#motivation').textContent = QUOTES[Number(dateKey().replace(/-/g, '')) % QUOTES.length];
     }
 
-    /* ----------------------- Progress ----------------------- */
-    function renderProgress() {
-      const total = state.habits.length;
-      const done = state.habits.filter((h) => h.done).length;
-      const pct = total ? Math.round((done / total) * 100) : 0;
-      $('#progressBar').style.width = pct + '%';
-      $('#progressLabel').textContent = `${done} of ${total} complete`;
-      const msg = $('#progressMessage');
-      if (total && done === total) {
-        msg.textContent = 'Strong day. Keep the momentum going.';
-      } else if (done > 0) {
-        msg.textContent = `Today's Progress: ${done} of ${total} complete.`;
-      } else {
-        msg.textContent = 'A fresh start. Pick one habit to begin.';
-      }
+    function renderSaveStatus(text) {
+      const el = $('#saveStatus');
+      if (text) { el.textContent = text; return; }
+      if (!lastSavedAt) { el.textContent = 'All changes saved'; return; }
+      const s = Math.floor((Date.now() - lastSavedAt) / 1000);
+      if (s < 5) el.textContent = 'Saved just now';
+      else if (s < 60) el.textContent = `Saved ${s}s ago`;
+      else if (s < 3600) el.textContent = `Saved ${Math.floor(s / 60)}m ago`;
+      else el.textContent = 'All changes saved';
     }
 
-    /* ----------------------- Habits ----------------------- */
+    function renderScore() {
+      const { total, parts } = dailyScore();
+      $('#scoreBar').style.width = total + '%';
+      $('#scoreLabel').textContent = total + '%';
+      $('#scoreMessage').textContent = scoreMessage(total);
+      const bd = $('#scoreBreakdown');
+      const weights = { Habits: 40, Focus: 15, 'Mood logged': 15, 'Journal / wins': 15, 'Goals updated': 10, 'Money check-in': 5 };
+      bd.innerHTML = Object.keys(weights).map((k) =>
+        `<li class="flex justify-between"><span>${k}</span><span class="font-medium text-stone2-700">${Math.round(parts[k])} / ${weights[k]}</span></li>`).join('');
+      maybeConfetti(total);
+    }
+
+    /* ----- Habits ----- */
     function renderHabits() {
+      const rec = today();
       const list = $('#habitList');
       list.innerHTML = '';
       state.habits.forEach((h) => {
+        const done = !!rec.habitsCompleted[h.id];
+        const streak = habitStreak(h.id);
         const li = document.createElement('li');
         li.className = 'fade-in';
         li.innerHTML = `
-          <div class="flex items-center gap-3 rounded-2xl border px-3.5 py-3 transition cursor-pointer ${
-            h.done ? 'bg-sage-100 border-sage-200' : 'bg-cream-50 border-cream-200 hover:border-sage-200'
-          }">
-            <button class="toggle shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${
-              h.done ? 'bg-sage-500 border-sage-500 text-white' : 'border-stone2-200 text-transparent'
-            }" aria-label="Toggle habit">
+          <div class="flex items-center gap-3 rounded-2xl border px-3.5 py-3 transition cursor-pointer ${done ? 'bg-sage-100 border-sage-200' : 'bg-cream-50 border-cream-200 hover:border-sage-200'}">
+            <button class="toggle shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${done ? 'bg-sage-500 border-sage-500 text-white' : 'border-stone2-200 text-transparent'}" aria-label="Toggle ${escapeHtml(h.label)}">
               <svg viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
             </button>
-            <span class="flex-1 text-sm font-medium ${h.done ? 'text-sage-700 line-through decoration-sage-300' : 'text-stone2-700'}">${escapeHtml(h.label)}</span>
+            <div class="flex-1 min-w-0">
+              <span class="block text-sm font-medium ${done ? 'text-sage-700 line-through decoration-sage-300' : 'text-stone2-700'}">${escapeHtml(h.label)}</span>
+              <span class="block text-[11px] text-stone2-400">🔥 ${streak} day streak · best ${habitBest(h.id)} · ${habit7day(h.id)}% last 7d</span>
+            </div>
             <button class="remove shrink-0 text-stone2-200 hover:text-red-400 transition" aria-label="Remove habit">
               <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg>
             </button>
           </div>`;
-        const card = li.firstElementChild;
-        const toggle = () => { h.done = !h.done; save(); renderHabits(); renderProgress(); };
-        card.addEventListener('click', (e) => {
+        li.querySelector('.toggle').closest('div').addEventListener('click', (e) => {
           if (e.target.closest('.remove')) return;
-          toggle();
+          if (rec.habitsCompleted[h.id]) delete rec.habitsCompleted[h.id]; else rec.habitsCompleted[h.id] = true;
+          save(); renderHabits(); refresh();
         });
         li.querySelector('.remove').addEventListener('click', (e) => {
           e.stopPropagation();
           state.habits = state.habits.filter((x) => x !== h);
-          save(); renderHabits(); renderProgress(); updateAddState();
+          save(); renderHabits(); refresh();
         });
         list.appendChild(li);
       });
-      updateAddState();
-    }
-
-    function updateAddState() {
-      const atLimit = state.habits.length >= 8;
+      const atLimit = state.habits.length >= 10;
+      $('#addHabit').disabled = atLimit; $('#newHabit').disabled = atLimit;
       $('#addHabitWrap').classList.toggle('opacity-50', atLimit);
-      $('#addHabit').disabled = atLimit;
-      $('#newHabit').disabled = atLimit;
       $('#habitLimit').classList.toggle('hidden', !atLimit);
     }
-
     function addHabit() {
-      const input = $('#newHabit');
-      const label = input.value.trim();
-      if (!label || state.habits.length >= 8) return;
-      state.habits.push({ id: 'h' + Date.now(), label, done: false });
-      input.value = '';
-      save(); renderHabits(); renderProgress();
+      const inp = $('#newHabit'); const label = inp.value.trim();
+      if (!label || state.habits.length >= 10) return;
+      state.habits.push({ id: 'h' + Date.now(), label, custom: true });
+      inp.value = ''; save(); renderHabits(); refresh();
     }
 
-    /* ----------------------- Goals ----------------------- */
-    function renderGoals() {
-      const wrap = $('#goalList');
-      wrap.innerHTML = '';
-      state.goals.forEach((g) => {
-        const row = document.createElement('div');
-        row.innerHTML = `
-          <div class="flex items-center justify-between mb-1.5">
-            <span class="text-sm font-medium text-stone2-700">${escapeHtml(g.title)}</span>
-            <span class="pct text-sm font-semibold text-sage-600">${g.progress}%</span>
-          </div>
-          <input type="range" min="0" max="100" value="${g.progress}" class="w-full" />
-          <input type="text" maxlength="120" value="${escapeAttr(g.action)}" placeholder="Next action…"
-            class="action mt-2 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2 text-sm placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" />`;
-        const range = row.querySelector('input[type="range"]');
-        const pct = row.querySelector('.pct');
-        range.addEventListener('input', () => { pct.textContent = range.value + '%'; });
-        range.addEventListener('change', () => { g.progress = Number(range.value); save(); });
-        const action = row.querySelector('.action');
-        action.addEventListener('input', () => { g.action = action.value; save(); });
-        wrap.appendChild(row);
+    /* ----- Focus timer ----- */
+    const Timer = {
+      mode: 'work', remaining: MODE_MIN.work * 60, running: false, tick: null, startedAt: null,
+      setMode(mode) {
+        this.pause(); this.mode = mode; this.remaining = MODE_MIN[mode] * 60; this.startedAt = null;
+        this.render(); this.hideNotice();
+        $('#timerStatus').textContent = MODE_LABEL[mode];
+        $$('.timer-mode').forEach((b) => {
+          const on = b.dataset.mode === mode;
+          b.classList.toggle('bg-sage-500', on); b.classList.toggle('text-white', on);
+          b.classList.toggle('bg-cream-100', !on); b.classList.toggle('text-stone2-600', !on);
+        });
+      },
+      start() {
+        if (this.running || this.remaining <= 0) return;
+        this.running = true; if (!this.startedAt) this.startedAt = new Date();
+        $('#timerStatus').textContent = MODE_LABEL[this.mode]; this.hideNotice();
+        this.tick = setInterval(() => { this.remaining--; this.render(); if (this.remaining <= 0) this.complete(); }, 1000);
+      },
+      pause() { if (!this.running) return; this.running = false; clearInterval(this.tick); $('#timerStatus').textContent = 'Paused'; },
+      reset() { this.pause(); this.remaining = MODE_MIN[this.mode] * 60; this.startedAt = null; this.render(); this.hideNotice(); $('#timerStatus').textContent = MODE_LABEL[this.mode]; },
+      skip() { this.pause(); this.advance(false); },
+      complete() {
+        clearInterval(this.tick); this.running = false;
+        if (this.mode === 'work') {
+          const rec = today();
+          rec.focusSessions.push({ id: Date.now(), start: this.startedAt ? this.startedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : nowTime(), end: nowTime(), duration: MODE_MIN.work, mode: 'work', completed: true });
+          save(); renderFocus(); refresh();
+        }
+        this.showNotice(this.mode === 'work' ? '🌿 Focus session complete. Take a break.' : '☀️ Break over. Ready for another focus block?');
+        this.advance(true);
+      },
+      advance(announce) {
+        const completedWork = today().focusSessions.filter((s) => s.mode === 'work' && s.completed).length;
+        let next;
+        if (this.mode === 'work') next = completedWork % 4 === 0 ? 'long' : 'short';
+        else next = 'work';
+        this.setMode(next);
+        if (announce) { /* notice already shown */ }
+      },
+      render() {
+        const m = Math.floor(Math.max(0, this.remaining) / 60), s = Math.max(0, this.remaining) % 60;
+        $('#timerDisplay').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      },
+      showNotice(msg) { const n = $('#timerNotice'); n.textContent = msg; n.classList.remove('hidden'); },
+      hideNotice() { $('#timerNotice').classList.add('hidden'); },
+    };
+    function renderFocus() {
+      const rec = today();
+      const sessions = rec.focusSessions.filter((s) => s.mode === 'work' && s.completed);
+      $('#focusSessions').textContent = sessions.length;
+      $('#focusToday').textContent = focusMinutes(rec);
+      $('#focusWeek').textContent = weekFocusMinutes();
+      const list = $('#focusHistory'); list.innerHTML = '';
+      $('#focusEmpty').classList.toggle('hidden', sessions.length > 0);
+      sessions.slice().reverse().forEach((s) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between text-sm rounded-lg bg-cream-50 border border-cream-200 px-3 py-1.5';
+        li.innerHTML = `<span class="text-stone2-600">${escapeHtml(s.start)} – ${escapeHtml(s.end)}</span><span class="font-medium text-sage-600">${s.duration}m focus</span>`;
+        list.appendChild(li);
       });
     }
 
-    /* ----------------------- Mood log ----------------------- */
-    function renderMoods() {
-      const list = $('#moodList');
-      list.innerHTML = '';
-      $('#moodEmpty').classList.toggle('hidden', state.moods.length > 0);
-      state.moods.forEach((m) => {
+    /* ----- Mood ----- */
+    function renderMood() {
+      const rec = today();
+      const list = $('#moodList'); list.innerHTML = '';
+      $('#moodEmpty').classList.toggle('hidden', rec.moodLogs.length > 0);
+      rec.moodLogs.forEach((m) => {
         const li = document.createElement('li');
         li.className = 'fade-in rounded-2xl bg-cream-50 border border-cream-200 px-3.5 py-2.5';
         li.innerHTML = `
@@ -471,330 +805,557 @@
             <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-sm font-medium text-stone2-700">${escapeHtml(m.mood)}</span>
-                <span class="text-xs font-medium text-sage-600 bg-sage-100 rounded-full px-2 py-0.5">Energy ${m.energy}/5</span>
+                <span class="text-xs font-medium text-sage-600 bg-sage-100 rounded-full px-2 py-0.5">E ${m.energy} · S ${m.stress}</span>
               </div>
               ${m.note ? `<p class="mt-1 text-sm text-stone2-600 break-words">${escapeHtml(m.note)}</p>` : ''}
-              <p class="mt-1 text-xs text-stone2-400">${escapeHtml(m.when)}</p>
+              <p class="mt-1 text-xs text-stone2-400">${escapeHtml(m.time)}</p>
             </div>
             <button class="del shrink-0 text-stone2-200 hover:text-red-400 transition" aria-label="Delete log">
               <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg>
             </button>
           </div>`;
-        li.querySelector('.del').addEventListener('click', () => {
-          state.moods = state.moods.filter((x) => x !== m);
-          save(); renderMoods();
-        });
+        li.querySelector('.del').addEventListener('click', () => { rec.moodLogs = rec.moodLogs.filter((x) => x !== m); save(); renderMood(); refresh(); });
+        list.appendChild(li);
+      });
+      // summaries
+      const e = avg(rec.moodLogs.map((m) => Number(m.energy)));
+      const s = avg(rec.moodLogs.map((m) => Number(m.stress)));
+      $('#avgEnergy').textContent = e ? e.toFixed(1) : '—';
+      $('#avgStress').textContent = s ? s.toFixed(1) : '—';
+      if (rec.moodLogs.length) {
+        const tally = {}; rec.moodLogs.forEach((m) => { tally[m.mood] = (tally[m.mood] || 0) + 1; });
+        const top = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
+        $('#commonMood').textContent = (top || '—').split(' ')[0];
+      } else $('#commonMood').textContent = '—';
+    }
+    function logMood() {
+      const rec = today();
+      rec.moodLogs.unshift({ id: Date.now(), time: nowTime(), mood: $('#moodInput').value, energy: $('#energyInput').value, stress: $('#stressInput').value, note: $('#moodNote').value.trim() });
+      $('#moodNote').value = ''; save(); renderMood(); refresh();
+    }
+
+    /* ----- Sleep ----- */
+    function renderSleep() {
+      const rec = recordFor(dateKey());
+      const last = rec && rec.sleep ? rec.sleep : null;
+      $('#sleepLast').textContent = last ? `${last.hours}h · quality ${last.quality}/5` : '—';
+      const hours = lastNKeys(7).map((k) => { const r = recordFor(k); return r && r.sleep ? Number(r.sleep.hours) : null; });
+      const a = avg(hours);
+      $('#sleepAvg').textContent = a ? a.toFixed(1) + 'h' : '—';
+      let msg = '';
+      if (a != null) msg = a >= 7.5 ? 'Recovery looks strong.' : a >= 6 ? 'Sleep debt building.' : 'Low recovery — go easier today.';
+      $('#sleepMsg').textContent = msg;
+    }
+    function saveSleep() {
+      const hours = parseFloat($('#sleepHours').value);
+      if (isNaN(hours)) { $('#sleepHours').focus(); return; }
+      today().sleep = { hours, quality: Number($('#sleepQuality').value), savedAt: new Date().toISOString() };
+      save(); renderSleep(); refresh();
+    }
+
+    /* ----- Money ----- */
+    function renderMoney() {
+      const rec = recordFor(dateKey());
+      const m = rec && rec.money ? rec.money : null;
+      $('#moneyStatus').textContent = m ? `stress ${m.stress}/5 · invoices ${m.checked ? 'checked ✓' : 'not checked'}${m.priority ? ' · ' + m.priority : ''}` : 'Not logged yet.';
+      const vals = lastNKeys(7).map((k) => { const r = recordFor(k); return r && r.money ? Number(r.money.stress) : null; });
+      const a = avg(vals);
+      $('#moneyAvg').textContent = a ? a.toFixed(1) + ' / 5' : '—';
+    }
+    function saveMoney() {
+      today().money = { stress: Number($('#moneyStress').value), checked: $('#moneyChecked').value === 'yes', priority: $('#moneyPriority').value.trim(), savedAt: new Date().toISOString() };
+      save(); renderMoney(); refresh();
+    }
+
+    /* ----- People ----- */
+    function renderPeople() {
+      const rec = today();
+      const list = $('#peopleList'); list.innerHTML = '';
+      $('#peopleEmpty').classList.toggle('hidden', rec.people.length > 0);
+      rec.people.forEach((p) => {
+        const li = document.createElement('li');
+        li.className = 'fade-in flex items-center gap-3 rounded-2xl border px-3.5 py-2.5 ' + (p.done ? 'bg-sage-100 border-sage-200' : 'bg-cream-50 border-cream-200');
+        li.innerHTML = `
+          <button class="chk shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${p.done ? 'bg-sage-500 border-sage-500 text-white' : 'border-stone2-200 text-transparent'}">
+            <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+          </button>
+          <div class="flex-1 min-w-0">
+            <span class="block text-sm font-medium ${p.done ? 'text-sage-700 line-through' : 'text-stone2-700'}">${escapeHtml(p.person)}</span>
+            ${p.reason ? `<span class="block text-[11px] text-stone2-400">${escapeHtml(p.reason)}</span>` : ''}
+          </div>
+          <button class="del shrink-0 text-stone2-200 hover:text-red-400 transition"><svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg></button>`;
+        li.querySelector('.chk').addEventListener('click', () => { p.done = !p.done; save(); renderPeople(); refresh(); });
+        li.querySelector('.del').addEventListener('click', () => { rec.people = rec.people.filter((x) => x !== p); save(); renderPeople(); refresh(); });
         list.appendChild(li);
       });
     }
-
-    function logMood() {
-      const entry = {
-        id: Date.now(),
-        energy: $('#energyInput').value,
-        mood: $('#moodInput').value,
-        note: $('#moodNote').value.trim(),
-        when: new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      };
-      state.moods.unshift(entry);
-      $('#moodNote').value = '';
-      save(); renderMoods();
+    function addPerson() {
+      const person = $('#personName').value.trim(); if (!person) { $('#personName').focus(); return; }
+      today().people.push({ id: Date.now(), person, reason: $('#personReason').value.trim(), done: false });
+      $('#personName').value = ''; $('#personReason').value = ''; save(); renderPeople();
     }
 
-    /* ----------------------- Wins / journal ----------------------- */
+    /* ----- Priorities (Top 3) ----- */
+    function renderPriorities() {
+      const rec = today();
+      const list = $('#priorityList'); list.innerHTML = '';
+      $('#priorityEmpty').classList.toggle('hidden', rec.priorities.length > 0);
+      rec.priorities.forEach((p) => {
+        const li = document.createElement('li');
+        li.className = 'fade-in flex items-center gap-3 rounded-2xl border px-3.5 py-2.5 ' + (p.done ? 'bg-sage-100 border-sage-200' : 'bg-cream-50 border-cream-200');
+        li.innerHTML = `
+          <button class="chk shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${p.done ? 'bg-sage-500 border-sage-500 text-white' : 'border-stone2-200 text-transparent'}">
+            <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+          </button>
+          <span class="flex-1 min-w-0 text-sm font-medium ${p.done ? 'text-sage-700 line-through' : 'text-stone2-700'}">${escapeHtml(p.text)}</span>
+          <button class="del shrink-0 text-stone2-200 hover:text-red-400 transition"><svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg></button>`;
+        li.querySelector('.chk').addEventListener('click', () => { p.done = !p.done; save(); renderPriorities(); });
+        li.querySelector('.del').addEventListener('click', () => { rec.priorities = rec.priorities.filter((x) => x !== p); save(); renderPriorities(); });
+        list.appendChild(li);
+      });
+      const full = rec.priorities.length >= 3;
+      $('#priorityAdd').disabled = full; $('#priorityInput').disabled = full;
+      $('#priorityInput').placeholder = full ? 'Three is plenty — focus.' : 'Add a key priority…';
+    }
+    function addPriority(text) {
+      const rec = today(); const t = (text || $('#priorityInput').value).trim();
+      if (!t || rec.priorities.length >= 3) return;
+      rec.priorities.push({ id: Date.now(), text: t, done: false });
+      $('#priorityInput').value = ''; save(); renderPriorities();
+    }
+
+    /* ----- Journal / wins ----- */
     function renderWins() {
-      const list = $('#winList');
-      list.innerHTML = '';
-      $('#winEmpty').classList.toggle('hidden', state.wins.length > 0);
-      state.wins.forEach((w) => {
+      const rec = today();
+      const list = $('#winList'); list.innerHTML = '';
+      $('#winEmpty').classList.toggle('hidden', rec.journalEntries.length > 0);
+      rec.journalEntries.forEach((w) => {
         const li = document.createElement('li');
         li.className = 'fade-in rounded-2xl bg-cream-50 border border-cream-200 px-4 py-3';
         li.innerHTML = `
           <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="text-xs text-stone2-400 mb-1">${escapeHtml(w.when)}</p>
-              <p class="text-sm text-stone2-700 whitespace-pre-wrap break-words">${escapeHtml(w.text)}</p>
+            <div class="min-w-0 flex-1">
+              <p class="text-xs text-stone2-400 mb-1">${escapeHtml(w.time)}</p>
+              <p class="entry-text text-sm text-stone2-700 whitespace-pre-wrap break-words">${escapeHtml(w.text)}</p>
             </div>
-            <button class="del shrink-0 text-stone2-200 hover:text-red-400 transition" aria-label="Delete entry">
-              <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg>
-            </button>
+            <div class="flex gap-1 shrink-0">
+              <button class="edit text-stone2-200 hover:text-sage-600 transition" aria-label="Edit"><svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path d="M13.6 2.9l3.5 3.5L7 16.5l-3.9.4.4-3.9 10.1-10.1z"/></svg></button>
+              <button class="del text-stone2-200 hover:text-red-400 transition" aria-label="Delete"><svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.9.6L7.6 4H4a1 1 0 000 2h12a1 1 0 100-2h-3.6l-.5-1.4A1 1 0 0011 2H9zM5 8a1 1 0 011 1v6a1 1 0 102 0V9a1 1 0 112 0v6a1 1 0 102 0V9a1 1 0 112 0v6a3 3 0 01-3 3H8a3 3 0 01-3-3V8z" clip-rule="evenodd"/></svg></button>
+            </div>
           </div>`;
-        li.querySelector('.del').addEventListener('click', () => {
-          state.wins = state.wins.filter((x) => x !== w);
-          save(); renderWins();
+        li.querySelector('.del').addEventListener('click', () => { rec.journalEntries = rec.journalEntries.filter((x) => x !== w); save(); renderWins(); refresh(); });
+        li.querySelector('.edit').addEventListener('click', () => {
+          const updated = window.prompt('Edit entry', w.text);
+          if (updated !== null) { w.text = updated.trim() || w.text; save(); renderWins(); }
         });
         list.appendChild(li);
       });
     }
-
     function saveWin() {
-      const ta = $('#winInput');
-      const text = ta.value.trim();
-      if (!text) return;
-      state.wins.unshift({
-        id: Date.now(),
-        text,
-        when: new Date().toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      });
-      ta.value = '';
-      save(); renderWins();
+      const ta = $('#winInput'); const text = ta.value.trim(); if (!text) return;
+      today().journalEntries.unshift({ id: Date.now(), time: nowTime(), text });
+      ta.value = ''; save(); renderWins(); refresh();
     }
 
-    /* ----------------------- Weekly reflection ----------------------- */
+    /* ----- Goals ----- */
+    function renderGoals() {
+      const wrap = $('#goalList'); wrap.innerHTML = '';
+      state.goals.forEach((g) => {
+        const card = document.createElement('div');
+        card.className = 'rounded-2xl border border-cream-200 bg-cream-50 p-4 ' + (g.completed ? 'opacity-70' : '');
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <input class="title flex-1 bg-transparent text-sm font-semibold text-stone2-800 focus:outline-none focus:bg-white rounded px-1 py-0.5" value="${escapeHtml(g.title)}" />
+            <span class="pct text-sm font-semibold text-sage-600">${g.progress}%</span>
+          </div>
+          <input type="range" min="0" max="100" value="${g.progress}" class="range w-full" />
+          <input class="action mt-2 w-full rounded-lg border border-cream-200 bg-white px-2.5 py-1.5 text-xs placeholder-stone2-400 focus:outline-none focus:ring-2 focus:ring-sage-300" placeholder="Next action…" value="${escapeHtml(g.action)}" />
+          <div class="mt-2 grid grid-cols-2 gap-2">
+            <input type="date" class="deadline rounded-lg border border-cream-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-sage-300" value="${escapeHtml(g.deadline)}" />
+            <select class="priority rounded-lg border border-cream-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-sage-300">
+              ${['Low', 'Medium', 'High'].map((p) => `<option ${p === g.priority ? 'selected' : ''}>${p}</option>`).join('')}
+            </select>
+          </div>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-[11px] text-stone2-400">${g.updatedAt ? 'Updated ' + g.updatedAt.slice(0, 10) : 'Not updated yet'}</span>
+            <div class="flex gap-2">
+              <button class="complete text-[11px] font-medium ${g.completed ? 'text-sage-600' : 'text-stone2-400 hover:text-sage-600'} transition">${g.completed ? '✓ Done' : 'Mark done'}</button>
+              <button class="remove text-[11px] font-medium text-stone2-400 hover:text-red-400 transition">Delete</button>
+            </div>
+          </div>`;
+        const touch = () => { g.updatedAt = new Date().toISOString(); save(); };
+        const range = card.querySelector('.range'), pct = card.querySelector('.pct');
+        range.addEventListener('input', () => { pct.textContent = range.value + '%'; });
+        range.addEventListener('change', () => { g.progress = Number(range.value); touch(); renderGoalSummary(); renderScore(); renderInsights(); });
+        card.querySelector('.title').addEventListener('change', (e) => { g.title = e.target.value.trim() || g.title; touch(); });
+        card.querySelector('.action').addEventListener('change', (e) => { g.action = e.target.value; touch(); });
+        card.querySelector('.deadline').addEventListener('change', (e) => { g.deadline = e.target.value; touch(); });
+        card.querySelector('.priority').addEventListener('change', (e) => { g.priority = e.target.value; touch(); });
+        card.querySelector('.complete').addEventListener('click', () => { g.completed = !g.completed; if (g.completed) g.progress = 100; touch(); renderGoals(); renderGoalSummary(); renderScore(); renderInsights(); });
+        card.querySelector('.remove').addEventListener('click', () => { if (window.confirm('Delete this goal?')) { state.goals = state.goals.filter((x) => x !== g); save(); renderGoals(); renderGoalSummary(); } });
+        wrap.appendChild(card);
+      });
+      renderGoalSummary();
+    }
+    function renderGoalSummary() {
+      const active = state.goals.filter((g) => !g.completed);
+      const done = state.goals.filter((g) => g.completed).length;
+      const a = avg(active.map((g) => g.progress));
+      $('#goalAvg').textContent = (a != null ? Math.round(a) : 0) + '%';
+      $('#goalActive').textContent = active.length;
+      $('#goalDone').textContent = done;
+    }
+    function addGoal() {
+      state.goals.push({ id: 'g' + Date.now(), title: 'New goal', progress: 0, action: '', deadline: '', priority: 'Medium', completed: false, updatedAt: '' });
+      save(); renderGoals();
+    }
+
+    /* ----- Tomorrow note (auto-save) ----- */
+    let tomorrowTimer = null;
+    function bindTomorrow() {
+      const ta = $('#tomorrowInput');
+      ta.addEventListener('input', () => { today().tomorrow = ta.value; clearTimeout(tomorrowTimer); tomorrowTimer = setTimeout(save, 500); });
+    }
+
+    /* ----- Weekly reflection (auto-save) ----- */
     let reflectTimer = null;
-    function renderReflection() {
-      $$('[data-reflect]').forEach((el) => {
-        el.value = state.reflection[el.dataset.reflect] || '';
-      });
-      const has = Object.values(state.reflection).some((v) => v && v.trim());
-      $('#reflectEmpty').classList.toggle('hidden', has);
+    function currentReflection() {
+      const wk = isoWeek();
+      if (!state.weeklyReflections[wk]) state.weeklyReflections[wk] = { forward: '', drained: '', attention: '', avoiding: '', mainWin: '', updatedAt: '' };
+      return state.weeklyReflections[wk];
     }
-
+    function renderReflection() {
+      $('#weekLabel').textContent = '· ' + isoWeek();
+      const r = state.weeklyReflections[isoWeek()] || {};
+      $$('[data-reflect]').forEach((el) => { el.value = r[el.dataset.reflect] || ''; });
+      const has = Object.keys(r).some((k) => k !== 'updatedAt' && r[k] && r[k].trim && r[k].trim());
+      $('#reflectEmpty').classList.toggle('hidden', has);
+      $('#reflectSaved').textContent = r.updatedAt ? 'Last saved ' + new Date(r.updatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    }
     function bindReflection() {
       $$('[data-reflect]').forEach((el) => {
         el.addEventListener('input', () => {
-          state.reflection[el.dataset.reflect] = el.value;
-          clearTimeout(reflectTimer);
-          reflectTimer = setTimeout(() => {
-            save();
-            const has = Object.values(state.reflection).some((v) => v && v.trim());
-            $('#reflectEmpty').classList.toggle('hidden', has);
-            const tag = $('#reflectSaved');
-            tag.style.opacity = '1';
-            setTimeout(() => (tag.style.opacity = '0'), 1200);
-          }, 500);
+          const r = currentReflection(); r[el.dataset.reflect] = el.value; r.updatedAt = new Date().toISOString();
+          clearTimeout(reflectTimer); reflectTimer = setTimeout(() => { save(); renderReflection(); }, 500);
         });
       });
     }
 
-    /* ----------------------- Focus timer ----------------------- */
-    const Timer = {
-      modes: { work: 25 * 60, break: 5 * 60 },
-      mode: 'work',
-      remaining: 25 * 60,
-      running: false,
-      tick: null,
-
-      setMode(mode, { silent } = {}) {
-        this.pause();
-        this.mode = mode;
-        this.remaining = this.modes[mode];
-        this.render();
-        if (!silent) this.hideNotice();
-        $('#timerStatus').textContent = mode === 'work' ? 'Focus session' : 'Break time';
-        $$('.timer-mode').forEach((b) => {
-          const active = b.dataset.mode === mode;
-          b.classList.toggle('bg-sage-500', active);
-          b.classList.toggle('text-white', active);
-          b.classList.toggle('bg-cream-100', !active);
-          b.classList.toggle('text-stone2-600', !active);
-        });
-      },
-
-      start() {
-        if (this.running || this.remaining <= 0) return;
-        this.running = true;
-        $('#timerStatus').textContent = this.mode === 'work' ? 'Focus session' : 'Break time';
-        this.hideNotice();
-        this.tick = setInterval(() => {
-          this.remaining--;
-          this.render();
-          if (this.remaining <= 0) this.complete();
-        }, 1000);
-      },
-
-      pause() {
-        if (!this.running) return;
-        this.running = false;
-        clearInterval(this.tick);
-        $('#timerStatus').textContent = 'Paused';
-      },
-
-      reset() {
-        this.pause();
-        this.remaining = this.modes[this.mode];
-        this.render();
-        this.hideNotice();
-        $('#timerStatus').textContent = this.mode === 'work' ? 'Focus session' : 'Break time';
-      },
-
-      complete() {
-        clearInterval(this.tick);
-        this.running = false;
-        const wasWork = this.mode === 'work';
-        $('#timerStatus').textContent = 'Session complete';
-        this.showNotice(
-          wasWork ? '🌿 Focus session complete. Time for a short break.' : '☀️ Break over. Ready for another focus session?'
-        );
-        // Auto-switch to the opposite mode, ready to start.
-        this.setMode(wasWork ? 'break' : 'work', { silent: true });
-      },
-
-      render() {
-        const m = Math.floor(Math.max(0, this.remaining) / 60);
-        const s = Math.max(0, this.remaining) % 60;
-        $('#timerDisplay').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-      },
-
-      showNotice(msg) {
-        const n = $('#timerNotice');
-        n.textContent = msg;
-        n.classList.remove('hidden');
-      },
-      hideNotice() { $('#timerNotice').classList.add('hidden'); },
-    };
-
-    /* ----------------------- Weather (Open-Meteo, no API key) ----------------------- */
-    // Map WMO weather codes to a friendly label + emoji.
-    function wmo(code) {
-      const map = {
-        0: ['Clear sky', '☀️'], 1: ['Mainly clear', '🌤️'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁️'],
-        45: ['Fog', '🌫️'], 48: ['Rime fog', '🌫️'],
-        51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Dense drizzle', '🌦️'],
-        56: ['Freezing drizzle', '🌧️'], 57: ['Freezing drizzle', '🌧️'],
-        61: ['Light rain', '🌦️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'],
-        66: ['Freezing rain', '🌧️'], 67: ['Freezing rain', '🌧️'],
-        71: ['Light snow', '🌨️'], 73: ['Snow', '🌨️'], 75: ['Heavy snow', '❄️'], 77: ['Snow grains', '🌨️'],
-        80: ['Rain showers', '🌦️'], 81: ['Rain showers', '🌧️'], 82: ['Violent showers', '⛈️'],
-        85: ['Snow showers', '🌨️'], 86: ['Snow showers', '❄️'],
-        95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm', '⛈️'], 99: ['Thunderstorm', '⛈️'],
-      };
-      return map[code] || ['—', '🌡️'];
+    /* ----- Suggestion ----- */
+    function renderSuggestion() {
+      const rec = today();
+      const habitTotal = state.habits.length;
+      const habitDone = Object.values(rec.habitsCompleted).filter(Boolean).length;
+      let text, why;
+      if (habitTotal && habitDone < habitTotal) { text = `Close out ${habitTotal - habitDone} more habit${habitTotal - habitDone > 1 ? 's' : ''}.`; why = 'Habits are 40% of your daily score.'; }
+      else if (focusMinutes(rec) < 25) { text = 'Run one 25-minute focus block.'; why = 'No deep-work logged yet today.'; }
+      else if (!rec.moodLogs.length) { text = 'Log your mood, energy and stress.'; why = 'A quick check-in keeps your trends honest.'; }
+      else if (!rec.journalEntries.length) { text = "Write one win from today."; why = 'Capturing wins compounds momentum.'; }
+      else if (!state.goals.some((g) => g.updatedAt && g.updatedAt.slice(0, 10) === dateKey())) { text = 'Nudge one core goal forward.'; why = 'Keep your bigger direction moving.'; }
+      else if (!rec.money) { text = 'Do a 60-second money & admin check-in.'; why = 'Stay grounded in real life, not just habits.'; }
+      else { text = "You're on track. Protect your evening."; why = 'Everything important is logged.'; }
+      $('#suggestionText').textContent = text;
+      $('#suggestionWhy').textContent = why;
     }
 
+    /* ----- Insights ----- */
+    function renderInsights() {
+      // A. 7-day habit completion
+      $('#insHabitPct').textContent = habit7dayAll() + '%';
+      const blocks = $('#insHabitBlocks'); blocks.innerHTML = '';
+      lastNKeys(7).forEach((k) => {
+        const r = recordFor(k);
+        const ratio = r && state.habits.length ? Object.values(r.habitsCompleted).filter(Boolean).length / state.habits.length : 0;
+        const b = document.createElement('div');
+        b.className = 'flex-1 h-8 rounded-md';
+        b.style.background = ratio > 0 ? `rgba(107,135,96,${0.2 + ratio * 0.8})` : '#efe9db';
+        b.title = `${k}: ${Math.round(ratio * 100)}%`;
+        blocks.appendChild(b);
+      });
+
+      // B. Mood/energy trend
+      const bars = $('#insMoodBars'); bars.innerHTML = '';
+      const energies = [];
+      lastNKeys(7).forEach((k) => {
+        const r = recordFor(k);
+        const e = r && r.moodLogs.length ? avg(r.moodLogs.map((m) => Number(m.energy))) : null;
+        if (e != null) energies.push(e);
+        const col = document.createElement('div');
+        col.className = 'flex-1 flex flex-col items-center justify-end gap-1 h-full';
+        const h = e != null ? Math.max(8, (e / 5) * 100) : 4;
+        col.innerHTML = `<div class="w-full rounded-t-md ${e != null ? 'bg-sage-400' : 'bg-cream-200'}" style="height:${h}%"></div><span class="text-[9px] text-stone2-400">${parseKey(k).toLocaleDateString(undefined, { weekday: 'narrow' })}</span>`;
+        bars.appendChild(col);
+      });
+      const ae = avg(energies);
+      $('#insMoodAvg').textContent = ae != null ? `Avg energy ${ae.toFixed(1)} / 5` : 'No mood data yet.';
+
+      // C. Focus minutes
+      $('#insFocusToday').textContent = focusMinutes(today());
+      $('#insFocusWeek').textContent = weekFocusMinutes();
+      let best = 0, bestDay = '';
+      lastNKeys(7).forEach((k) => { const m = focusMinutes(recordFor(k)); if (m > best) { best = m; bestDay = k; } });
+      $('#insFocusBest').textContent = best ? `Best day: ${best}m (${parseKey(bestDay).toLocaleDateString(undefined, { weekday: 'short' })})` : 'No focus sessions this week.';
+
+      // D. Energy vs stress
+      const eAll = [], sAll = [];
+      lastNKeys(7).forEach((k) => { const r = recordFor(k); if (r) r.moodLogs.forEach((m) => { eAll.push(Number(m.energy)); sAll.push(Number(m.stress)); }); });
+      const e7 = avg(eAll), s7 = avg(sAll);
+      $('#insEnergyVal').textContent = e7 != null ? e7.toFixed(1) : '—';
+      $('#insStressVal').textContent = s7 != null ? s7.toFixed(1) : '—';
+      $('#insEnergyBar').style.width = (e7 != null ? (e7 / 5) * 100 : 0) + '%';
+      $('#insStressBar').style.width = (s7 != null ? (s7 / 5) * 100 : 0) + '%';
+
+      // E. Streak
+      $('#insStreak').textContent = scoreStreak();
+
+      // F. Life balance
+      renderBalance(e7, s7);
+    }
+
+    function goalProgressByKeyword() {
+      const kws = Array.prototype.slice.call(arguments);
+      const g = state.goals.find((x) => kws.some((kw) => x.title.toLowerCase().includes(kw)));
+      return g ? g.progress : null;
+    }
+    function ratio7d(predicate) {
+      let hit = 0; lastNKeys(7).forEach((k) => { if (predicate(recordFor(k))) hit++; }); return (hit / 7) * 100;
+    }
+    function renderBalance(e7, s7) {
+      const sleepAvg = avg(lastNKeys(7).map((k) => { const r = recordFor(k); return r && r.sleep ? Number(r.sleep.hours) : null; }));
+      const journalRatio = ratio7d((r) => r && r.journalEntries.length > 0);
+      const meditate = state.habits.find((h) => /medit|pray|reflect/i.test(h.label));
+      const health = clampPct(avg([habit7dayAll(), e7 != null ? (e7 / 5) * 100 : null, sleepAvg != null ? Math.min(sleepAvg / 8 * 100, 100) : null]) || 0);
+      const business = clampPct(avg([Math.min(weekFocusMinutes() / 300 * 100, 100), goalProgressByKeyword('business', 'money'), ratio7d((r) => r && r.money && r.money.checked)]) || 0);
+      const family = clampPct(avg([ratio7d((r) => r && r.people.some((p) => p.done)), goalProgressByKeyword('family', 'relationship')]) || 0);
+      const mindset = clampPct(avg([journalRatio, s7 != null ? (5 - s7) / 5 * 100 : null, meditate ? habit7day(meditate.id) : null]) || 0);
+      const rows = [['Health', health], ['Business', business], ['Family', family], ['Mindset', mindset]];
+      $('#insBalance').innerHTML = rows.map(([label, v]) =>
+        `<div><div class="flex justify-between text-xs text-stone2-400 mb-1"><span>${label}</span><span>${v}%</span></div><div class="h-2 rounded-full bg-cream-200 overflow-hidden"><div class="h-full bg-sage-500 rounded-full transition-all duration-500" style="width:${v}%"></div></div></div>`
+      ).join('');
+    }
+
+    /* ----- History ----- */
+    function renderHistory(k) {
+      const view = $('#historyView');
+      const rec = recordFor(k);
+      if (!rec) { view.innerHTML = `<p class="text-stone2-400">No record for ${escapeHtml(k)}.</p>`; return; }
+      const habitDone = Object.values(rec.habitsCompleted).filter(Boolean).length;
+      const score = dailyScore(k).total;
+      const moods = rec.moodLogs.map((m) => `${escapeHtml(m.mood)} (E${m.energy}/S${m.stress})`).join(', ') || '—';
+      const wins = rec.journalEntries.length ? rec.journalEntries.map((w) => `<li class="text-stone2-600">• ${escapeHtml(w.text)}</li>`).join('') : '<li class="text-stone2-400">—</li>';
+      view.innerHTML = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+          <div class="rounded-xl bg-cream-50 border border-cream-200 p-3"><p class="text-2xl font-semibold text-sage-600">${score}%</p><p class="text-[11px] text-stone2-400">daily score</p></div>
+          <div class="rounded-xl bg-cream-50 border border-cream-200 p-3"><p class="text-2xl font-semibold text-stone2-800">${habitDone}/${state.habits.length}</p><p class="text-[11px] text-stone2-400">habits</p></div>
+          <div class="rounded-xl bg-cream-50 border border-cream-200 p-3"><p class="text-2xl font-semibold text-stone2-800">${focusMinutes(rec)}</p><p class="text-[11px] text-stone2-400">focus min</p></div>
+          <div class="rounded-xl bg-cream-50 border border-cream-200 p-3"><p class="text-2xl font-semibold text-stone2-800">${rec.sleep ? rec.sleep.hours + 'h' : '—'}</p><p class="text-[11px] text-stone2-400">sleep</p></div>
+        </div>
+        <p class="text-stone2-600 mb-1"><b class="text-stone2-700">Moods:</b> ${moods}</p>
+        <p class="text-stone2-600 mb-1"><b class="text-stone2-700">Money/admin:</b> ${rec.money ? 'stress ' + rec.money.stress + '/5, invoices ' + (rec.money.checked ? 'checked' : 'not checked') : '—'}</p>
+        <p class="text-stone2-700 font-medium mt-2 mb-1">Wins</p>
+        <ul class="space-y-0.5">${wins}</ul>`;
+    }
+
+    /* ----- Weather ----- */
+    function wmo(code) {
+      const map = { 0: ['Clear sky', '☀️'], 1: ['Mainly clear', '🌤️'], 2: ['Partly cloudy', '⛅'], 3: ['Overcast', '☁️'], 45: ['Fog', '🌫️'], 48: ['Rime fog', '🌫️'], 51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Dense drizzle', '🌦️'], 56: ['Freezing drizzle', '🌧️'], 57: ['Freezing drizzle', '🌧️'], 61: ['Light rain', '🌦️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'], 66: ['Freezing rain', '🌧️'], 67: ['Freezing rain', '🌧️'], 71: ['Light snow', '🌨️'], 73: ['Snow', '🌨️'], 75: ['Heavy snow', '❄️'], 77: ['Snow grains', '🌨️'], 80: ['Rain showers', '🌦️'], 81: ['Rain showers', '🌧️'], 82: ['Violent showers', '⛈️'], 85: ['Snow showers', '🌨️'], 86: ['Snow showers', '❄️'], 95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm', '⛈️'], 99: ['Thunderstorm', '⛈️'] };
+      return map[code] || ['—', '🌡️'];
+    }
     const Weather = {
       async fetch() {
-        const w = state.weather;
-        $('#weatherName').textContent = w.name;
-        $('#weatherDesc').textContent = 'Loading…';
+        const w = state.settings.weather;
+        $('#weatherName').textContent = w.name; $('#weatherDesc').textContent = 'Loading…';
         try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}` +
-            `&current=temperature_2m,weather_code&timezone=auto`;
-          const res = await fetch(url);
-          if (!res.ok) throw new Error('network');
-          const data = await res.json();
-          const c = data.current;
-          const [label, icon] = wmo(c.weather_code);
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=4&timezone=auto`;
+          const res = await fetch(url); if (!res.ok) throw new Error('net');
+          const data = await res.json(); const c = data.current; const [label, icon] = wmo(c.weather_code);
           $('#weatherTemp').textContent = Math.round(c.temperature_2m) + '°C';
-          $('#weatherDesc').textContent = label;
-          $('#weatherIcon').textContent = icon;
+          $('#weatherDesc').textContent = label; $('#weatherIcon').textContent = icon;
           $('#weatherHint').textContent = 'Tap the location to change it.';
+          this.renderForecast(data.daily);
         } catch (e) {
-          $('#weatherTemp').textContent = '—';
-          $('#weatherDesc').textContent = 'Weather unavailable';
-          $('#weatherIcon').textContent = '🌡️';
+          $('#weatherTemp').textContent = '—'; $('#weatherDesc').textContent = 'Weather unavailable'; $('#weatherIcon').textContent = '🌡️';
           $('#weatherHint').textContent = 'Offline? Reconnect, then reopen to load weather.';
+          $('#weatherForecast').innerHTML = '';
         }
       },
-
+      renderForecast(d) {
+        const wrap = $('#weatherForecast'); wrap.innerHTML = '';
+        if (!d || !Array.isArray(d.time)) return;
+        for (let i = 1; i <= 3 && i < d.time.length; i++) {
+          const day = parseKey(d.time[i]).toLocaleDateString(undefined, { weekday: 'short' });
+          const [, icon] = wmo(d.weather_code[i]);
+          const cell = document.createElement('div');
+          cell.className = 'rounded-xl bg-white/10 px-1 py-2 text-center';
+          cell.innerHTML = `<p class="text-[11px] text-sage-100 font-medium">${day}</p><p class="text-xl leading-tight my-0.5">${icon}</p><p class="text-[11px]"><span class="font-semibold text-white">${Math.round(d.temperature_2m_max[i])}°</span> <span class="text-sage-100">${Math.round(d.temperature_2m_min[i])}°</span></p>`;
+          wrap.appendChild(cell);
+        }
+      },
       async setCity(name) {
-        const err = $('#weatherError');
-        const q = (name || '').trim();
-        err.textContent = '';
-        if (!q) return;
-        err.textContent = 'Searching…';
+        const err = $('#weatherError'); const q = (name || '').trim(); err.textContent = '';
+        if (!q) return; err.textContent = 'Searching…';
         try {
-          const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}` +
-            `&count=1&language=en&format=json`;
-          const res = await fetch(url);
+          const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`);
           const data = await res.json();
           if (!data.results || !data.results.length) { err.textContent = 'City not found — try another spelling.'; return; }
           const r = data.results[0];
-          state.weather = {
-            name: r.name + (r.country_code ? ', ' + r.country_code : ''),
-            lat: r.latitude,
-            lon: r.longitude,
-          };
-          save();
-          $('#weatherInput').value = '';
-          $('#weatherEditWrap').classList.add('hidden');
-          $('#weatherHint').classList.remove('hidden');
-          this.fetch();
-        } catch (e) {
-          err.textContent = 'Could not look up that city.';
-        }
+          state.settings.weather = { name: r.name + (r.country_code ? ', ' + r.country_code : ''), lat: r.latitude, lon: r.longitude };
+          save(); $('#weatherInput').value = ''; $('#weatherEditWrap').classList.add('hidden'); $('#weatherHint').classList.remove('hidden'); this.fetch();
+        } catch (e) { err.textContent = 'Could not look up that city.'; }
       },
-
       toggleEdit() {
-        const wrap = $('#weatherEditWrap');
-        const hidden = wrap.classList.toggle('hidden');
+        const wrap = $('#weatherEditWrap'); const hidden = wrap.classList.toggle('hidden');
         $('#weatherHint').classList.toggle('hidden', !hidden);
         if (!hidden) { $('#weatherError').textContent = ''; $('#weatherInput').focus(); }
       },
     };
 
-    /* ----------------------- Export / clear ----------------------- */
+    /* ----- Theme ----- */
+    function applyTheme() {
+      const dark = state.settings.theme === 'dark';
+      document.documentElement.classList.toggle('dark', dark);
+      $('#themeToggle').textContent = dark ? '☀️' : '🌙';
+    }
+    function toggleTheme() { state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark'; save(); applyTheme(); }
+
+    /* ----- Confetti ----- */
+    let lastConfetti = '';
+    function maybeConfetti(total) {
+      if (total === 100 && lastConfetti !== dateKey()) { lastConfetti = dateKey(); confetti(); }
+    }
+    function confetti() {
+      const colors = ['#86a079', '#6b8760', '#cdd9c6', '#efe9db', '#a9bd9e'];
+      for (let i = 0; i < 28; i++) {
+        const p = document.createElement('div');
+        p.className = 'confetti-piece';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.background = colors[i % colors.length];
+        p.style.animationDuration = (2.2 + Math.random() * 1.6) + 's';
+        p.style.transform = `rotate(${Math.random() * 360}deg)`;
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 4200);
+      }
+    }
+
+    /* ----- Command box ----- */
+    function runCommand() {
+      const raw = $('#commandBox').value.trim(); if (!raw) return;
+      const m = raw.match(/^\+(\w+)\s+(.*)$/);
+      if (m) {
+        const kind = m[1].toLowerCase(), val = m[2].trim();
+        if (/^win/.test(kind)) { today().journalEntries.unshift({ id: Date.now(), time: nowTime(), text: val }); save(); renderWins(); refresh(); }
+        else if (/^task|prio/.test(kind)) addPriority(val);
+        else if (/^habit/.test(kind)) { if (state.habits.length < 10) { state.habits.push({ id: 'h' + Date.now(), label: val, custom: true }); save(); renderHabits(); refresh(); } }
+        else if (/^person|people/.test(kind)) { today().people.push({ id: Date.now(), person: val, reason: '', done: false }); save(); renderPeople(); }
+        else addPriority(val);
+      } else { addPriority(raw); }
+      $('#commandBox').value = '';
+    }
+
+    /* ----- Export / import / clear ----- */
     function exportData() {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `life-dashboard-${todayKey()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      a.href = url; a.download = `life-dashboard-backup-${dateKey()}.json`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (!parsed || typeof parsed !== 'object' || !('dailyRecords' in parsed) || !('habits' in parsed)) throw new Error('shape');
+          if (!window.confirm('Import this backup? It will replace all current data in this browser.')) return;
+          state = migrate(parsed); save(); applyTheme(); renderAll(); Weather.fetch();
+          $('#importMsg').textContent = 'Backup imported successfully.';
+        } catch (e) { $('#importMsg').textContent = 'That file is not a valid Life OS backup.'; }
+      };
+      reader.readAsText(file);
+    }
+    function clearToday() {
+      if (!window.confirm("Clear today's data? Past days stay in your history.")) return;
+      delete state.dailyRecords[dateKey()]; save(); renderAll();
+    }
+    function clearAll() {
+      if (!window.confirm('Clear EVERYTHING? This permanently removes all habits, history, goals, journals and reflections from this browser. This cannot be undone.')) return;
+      localStorage.removeItem(KEY); localStorage.removeItem(LEGACY_KEY);
+      state = defaultState(); save(); applyTheme(); renderAll(); Weather.fetch();
     }
 
-    function clearData() {
-      const ok = window.confirm('Clear all dashboard data? This permanently removes your habits, logs, goals, journal and reflections from this browser. This cannot be undone.');
-      if (!ok) return;
-      localStorage.removeItem(KEY);
-      state = defaultState();
-      save();
-      renderAll();
+    /* ----- Orchestration ----- */
+    function refresh() {
+      renderScore(); renderInsights(); renderSuggestion();
+      if ($('#historyDate').value === dateKey()) renderHistory(dateKey());
     }
-
-    /* ----------------------- Helpers ----------------------- */
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
-    function escapeAttr(str) { return escapeHtml(str); }
-
-    /* ----------------------- Render + bind ----------------------- */
     function renderAll() {
-      renderHeader();
-      renderHabits();
-      renderProgress();
-      renderGoals();
-      renderMoods();
-      renderWins();
-      renderReflection();
+      renderHeader(); renderScore(); renderHabits(); renderFocus(); renderMood(); renderSleep();
+      renderMoney(); renderPeople(); renderPriorities(); renderWins(); renderGoals();
+      $('#tomorrowInput').value = today().tomorrow || '';
+      renderReflection(); renderInsights(); renderSuggestion();
+      if (!$('#historyDate').value) $('#historyDate').value = dateKey();
+      $('#historyDate').max = dateKey();
+      renderHistory($('#historyDate').value);
+      renderSaveStatus();
     }
 
     function bind() {
       $('#addHabit').addEventListener('click', addHabit);
       $('#newHabit').addEventListener('keydown', (e) => { if (e.key === 'Enter') addHabit(); });
-      $('#resetHabits').addEventListener('click', () => {
-        state.habits.forEach((h) => (h.done = false));
-        save(); renderHabits(); renderProgress();
-      });
-      $('#logMood').addEventListener('click', logMood);
-      $('#saveWin').addEventListener('click', saveWin);
-      $('#exportData').addEventListener('click', exportData);
-      $('#clearData').addEventListener('click', clearData);
+      $('#resetHabits').addEventListener('click', () => { today().habitsCompleted = {}; save(); renderHabits(); refresh(); });
 
       $('#timerStart').addEventListener('click', () => Timer.start());
       $('#timerPause').addEventListener('click', () => Timer.pause());
       $('#timerReset').addEventListener('click', () => Timer.reset());
+      $('#timerSkip').addEventListener('click', () => Timer.skip());
       $$('.timer-mode').forEach((b) => b.addEventListener('click', () => Timer.setMode(b.dataset.mode)));
+
+      $('#logMood').addEventListener('click', logMood);
+      $('#sleepSave').addEventListener('click', saveSleep);
+      $('#moneySave').addEventListener('click', saveMoney);
+
+      $('#personAdd').addEventListener('click', addPerson);
+      $('#personReason').addEventListener('keydown', (e) => { if (e.key === 'Enter') addPerson(); });
+
+      $('#priorityAdd').addEventListener('click', () => addPriority());
+      $('#priorityInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addPriority(); });
+
+      $('#saveWin').addEventListener('click', saveWin);
+      $('#goalAdd').addEventListener('click', addGoal);
+
+      $('#scoreInfoBtn').addEventListener('click', () => $('#scoreInfo').classList.toggle('hidden'));
+      $('#themeToggle').addEventListener('click', toggleTheme);
+
+      $('#commandRun').addEventListener('click', runCommand);
+      $('#commandBox').addEventListener('keydown', (e) => { if (e.key === 'Enter') runCommand(); });
 
       $('#weatherCity').addEventListener('click', () => Weather.toggleEdit());
       $('#weatherGo').addEventListener('click', () => Weather.setCity($('#weatherInput').value));
       $('#weatherInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') Weather.setCity($('#weatherInput').value); });
 
-      bindReflection();
+      $('#historyDate').addEventListener('change', (e) => renderHistory(e.target.value));
+
+      $('#exportData').addEventListener('click', exportData);
+      $('#importData').addEventListener('change', (e) => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; });
+      $('#clearToday').addEventListener('click', clearToday);
+      $('#clearData').addEventListener('click', clearAll);
+
+      bindTomorrow(); bindReflection();
     }
 
-    /* ----------------------- Init ----------------------- */
-    dailyReset();
+    /* ----- Init ----- */
+    applyTheme();
     renderAll();
     bind();
     Timer.setMode('work');
     Weather.fetch();
 
-    // Refresh the greeting/date if the tab is left open past midnight.
-    setInterval(() => { dailyReset(); renderHeader(); renderHabits(); renderProgress(); }, 60 * 1000);
+    // Keep relative save time + date fresh; roll over at midnight without losing history.
+    let lastDay = dateKey();
+    setInterval(() => {
+      renderSaveStatus();
+      if (dateKey() !== lastDay) { lastDay = dateKey(); renderAll(); }
+    }, 20000);
   })();
   </script>
 </body>
