@@ -32,6 +32,15 @@
     .confetti-piece { position: fixed; width: 9px; height: 9px; top: -12px; border-radius: 2px; pointer-events: none; z-index: 60; animation: fall linear forwards; }
     @keyframes fall { to { transform: translateY(106vh) rotate(560deg); opacity: 0.85; } }
 
+    /* Accessibility: clear keyboard focus ring (mouse clicks stay clean) */
+    :focus-visible { outline: 2px solid #6b8760; outline-offset: 2px; border-radius: 6px; }
+    button:focus:not(:focus-visible) { outline: none; }
+
+    /* Accessibility: respect reduced-motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+    }
+
     /* ---------- Dark theme (targeted overrides for the calm palette) ---------- */
     html.dark body { background-color: #181b16; }
     html.dark .bg-white { background-color: #222620 !important; }
@@ -1392,6 +1401,8 @@
       if (total === 100 && lastConfetti !== dateKey()) { lastConfetti = dateKey(); confetti(); }
     }
     function confetti() {
+      // Honor the user's reduced-motion preference.
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const colors = ['#86a079', '#6b8760', '#cdd9c6', '#efe9db', '#a9bd9e'];
       for (let i = 0; i < 28; i++) {
         const p = document.createElement('div');
