@@ -385,6 +385,28 @@
       </div>
     </section>
 
+    <!-- ============== DAILY SCORE TREND ============== -->
+    <section class="bg-white rounded-3xl shadow-soft p-6 mt-5 card-hover">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h2 class="text-lg font-semibold text-stone2-800 flex items-center gap-2"><span>📈</span> Daily Score Trend</h2>
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-xs text-stone2-400">Avg <b id="trendAvg" class="text-sage-600">0%</b> · best <span id="trendBest">0%</span> · low <span id="trendLow">0%</span></span>
+          <div class="flex gap-1">
+            <button data-range="7" class="trend-range rounded-full px-3 py-1.5 text-xs font-medium transition">7 days</button>
+            <button data-range="30" class="trend-range rounded-full px-3 py-1.5 text-xs font-medium transition">30 days</button>
+          </div>
+        </div>
+      </div>
+      <div class="relative">
+        <div class="pointer-events-none absolute left-0 right-0 flex items-center gap-2" style="bottom:60%">
+          <div class="flex-1 border-t border-dashed border-sage-300/70"></div>
+          <span class="text-[9px] text-stone2-400 shrink-0">60%</span>
+        </div>
+        <div id="trendBars" class="relative flex items-end gap-1 h-40"></div>
+      </div>
+      <p id="trendEmpty" class="mt-3 text-sm text-stone2-400 text-center hidden">No history yet — your scores will build here day by day.</p>
+    </section>
+
     <!-- ============== WEEKLY REFLECTION ============== -->
     <section class="bg-white rounded-3xl shadow-soft p-6 mt-5 card-hover">
       <div class="flex items-center justify-between mb-4">
@@ -503,6 +525,7 @@
 
     let state = loadState();
     let lastSavedAt = null;
+    let trendRange = 7;
 
     function loadState() {
       try {
@@ -1134,6 +1157,36 @@
       ).join('');
     }
 
+    /* ----- Daily score trend (7 / 30 days) ----- */
+    function renderScoreTrend() {
+      const keys = lastNKeys(trendRange);
+      const scores = keys.map((k) => ({ k, v: dailyScore(k).total, has: !!recordFor(k) }));
+      const recorded = scores.filter((s) => s.has).map((s) => s.v);
+      const a = recorded.length ? Math.round(recorded.reduce((x, y) => x + y, 0) / recorded.length) : 0;
+      $('#trendAvg').textContent = a + '%';
+      $('#trendBest').textContent = (recorded.length ? Math.max.apply(null, recorded) : 0) + '%';
+      $('#trendLow').textContent = (recorded.length ? Math.min.apply(null, recorded) : 0) + '%';
+      $('#trendEmpty').classList.toggle('hidden', recorded.length > 0);
+
+      const showVal = trendRange <= 7; // avoid clutter on the 30-day view
+      const bars = $('#trendBars'); bars.innerHTML = '';
+      scores.forEach((s) => {
+        const col = document.createElement('div');
+        col.className = 'flex-1 flex flex-col items-center justify-end gap-1 h-full min-w-0';
+        const color = s.v >= 60 ? 'bg-sage-500' : s.v > 0 ? 'bg-sage-300' : 'bg-cream-200';
+        col.innerHTML =
+          `<span class="text-[9px] text-stone2-400 leading-none">${showVal && s.has ? s.v : ''}</span>` +
+          `<div class="w-full rounded-t-md ${color} transition-all duration-500" style="height:${Math.max(3, s.v)}%" title="${s.k}: ${s.v}%"></div>` +
+          `<span class="text-[9px] text-stone2-400 leading-none">${showVal ? parseKey(s.k).toLocaleDateString(undefined, { weekday: 'narrow' }) : ''}</span>`;
+        bars.appendChild(col);
+      });
+      $$('.trend-range').forEach((b) => {
+        const on = Number(b.dataset.range) === trendRange;
+        b.classList.toggle('bg-sage-500', on); b.classList.toggle('text-white', on);
+        b.classList.toggle('bg-cream-100', !on); b.classList.toggle('text-stone2-600', !on);
+      });
+    }
+
     /* ----- History ----- */
     function renderHistory(k) {
       const view = $('#historyView');
@@ -1285,14 +1338,14 @@
 
     /* ----- Orchestration ----- */
     function refresh() {
-      renderScore(); renderInsights(); renderSuggestion();
+      renderScore(); renderInsights(); renderScoreTrend(); renderSuggestion();
       if ($('#historyDate').value === dateKey()) renderHistory(dateKey());
     }
     function renderAll() {
       renderHeader(); renderScore(); renderHabits(); renderFocus(); renderMood(); renderSleep();
       renderMoney(); renderPeople(); renderPriorities(); renderWins(); renderGoals();
       $('#tomorrowInput').value = today().tomorrow || '';
-      renderReflection(); renderInsights(); renderSuggestion();
+      renderReflection(); renderInsights(); renderScoreTrend(); renderSuggestion();
       if (!$('#historyDate').value) $('#historyDate').value = dateKey();
       $('#historyDate').max = dateKey();
       renderHistory($('#historyDate').value);
@@ -1334,6 +1387,7 @@
       $('#weatherInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') Weather.setCity($('#weatherInput').value); });
 
       $('#historyDate').addEventListener('change', (e) => renderHistory(e.target.value));
+      $$('.trend-range').forEach((b) => b.addEventListener('click', () => { trendRange = Number(b.dataset.range); renderScoreTrend(); }));
 
       $('#exportData').addEventListener('click', exportData);
       $('#importData').addEventListener('change', (e) => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; });
