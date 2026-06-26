@@ -110,6 +110,7 @@ export function NewJobForm({
           </button>
           <button
             className="btn primary"
+            data-testid="create-job-btn"
             form="new-job-form"
             type="submit"
             disabled={busy}
@@ -123,6 +124,7 @@ export function NewJobForm({
         <label className="full">
           Job name *
           <input
+            data-testid="job-name-input"
             value={form.job_name}
             onChange={(e) => set('job_name', e.target.value)}
             required

@@ -7,6 +7,8 @@ import {
   type Profile,
 } from '../lib/types';
 
+// A contribution is a plain "who did what" log entry: person + type + note + date.
+// No points, no score, no weighting, no commission maths.
 export function AddContribution({
   jobId,
   profiles,
@@ -24,7 +26,6 @@ export function AddContribution({
   const [userId, setUserId] = useState(session?.user.id ?? '');
   const [type, setType] = useState<ContributionType>('lead_in');
   const [description, setDescription] = useState('');
-  const [weight, setWeight] = useState('');
 
   async function add() {
     if (!userId) {
@@ -38,7 +39,6 @@ export function AddContribution({
       user_id: userId,
       contribution_type: type,
       description: description.trim() || null,
-      weight: weight ? Number(weight) : null,
       added_by: session?.user.id ?? null,
     });
     setBusy(false);
@@ -47,25 +47,32 @@ export function AddContribution({
       return;
     }
     setDescription('');
-    setWeight('');
     setOpen(false);
     onAdded();
   }
 
   if (!open) {
     return (
-      <button className="btn small" onClick={() => setOpen(true)}>
+      <button
+        className="btn small"
+        data-testid="log-contribution-btn"
+        onClick={() => setOpen(true)}
+      >
         + Log a contribution
       </button>
     );
   }
 
   return (
-    <div className="contrib-form">
+    <div className="contrib-form" data-testid="contrib-form">
       <div className="form-grid">
         <label>
           Person
-          <select value={userId} onChange={(e) => setUserId(e.target.value)}>
+          <select
+            data-testid="contrib-person"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+          >
             <option value="">— choose —</option>
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
@@ -77,6 +84,7 @@ export function AddContribution({
         <label>
           Contribution
           <select
+            data-testid="contrib-type"
             value={type}
             onChange={(e) => setType(e.target.value as ContributionType)}
           >
@@ -87,18 +95,10 @@ export function AddContribution({
             ))}
           </select>
         </label>
-        <label>
-          Weight / points (optional)
-          <input
-            type="number"
-            step="0.01"
-            value={weight}
-            onChange={(e) => setWeight(e.target.value)}
-          />
-        </label>
         <label className="full">
           Notes
           <input
+            data-testid="contrib-notes"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -109,7 +109,12 @@ export function AddContribution({
         <button className="btn" onClick={() => setOpen(false)} disabled={busy}>
           Cancel
         </button>
-        <button className="btn primary" onClick={add} disabled={busy}>
+        <button
+          className="btn primary"
+          data-testid="contrib-add-btn"
+          onClick={add}
+          disabled={busy}
+        >
           {busy ? 'Saving…' : 'Add'}
         </button>
       </div>

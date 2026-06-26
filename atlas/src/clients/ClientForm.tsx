@@ -60,7 +60,13 @@ export function ClientForm({
           <button className="btn" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button className="btn primary" form="client-form" type="submit" disabled={busy}>
+          <button
+            className="btn primary"
+            data-testid="client-save-btn"
+            form="client-form"
+            type="submit"
+            disabled={busy}
+          >
             {busy ? 'Saving…' : 'Save'}
           </button>
         </>
@@ -69,7 +75,12 @@ export function ClientForm({
       <form id="client-form" className="form-grid" onSubmit={submit}>
         <label className="full">
           Client name *
-          <input value={form.name} onChange={(e) => set('name', e.target.value)} required />
+          <input
+            data-testid="client-name-input"
+            value={form.name}
+            onChange={(e) => set('name', e.target.value)}
+            required
+          />
         </label>
         <label>
           Email

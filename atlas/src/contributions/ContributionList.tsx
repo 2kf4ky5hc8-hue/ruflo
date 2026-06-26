@@ -47,7 +47,6 @@ export function ContributionList({
               <div className="contrib-main">
                 <strong>{profileName(c.user_id)}</strong>
                 <span className="badge soft">{contributionLabel(c.contribution_type)}</span>
-                {c.weight != null && <span className="weight">{c.weight} pts</span>}
               </div>
               {c.description && <div className="contrib-desc">{c.description}</div>}
               <div className="contrib-foot muted">

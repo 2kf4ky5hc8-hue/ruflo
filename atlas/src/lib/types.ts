@@ -116,7 +116,6 @@ export interface JobContribution {
   user_id: string;
   contribution_type: ContributionType;
   description: string | null;
-  weight: number | null;
   occurred_at: string;
   added_by: string | null;
   created_at: string;

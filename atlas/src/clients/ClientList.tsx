@@ -49,7 +49,11 @@ export function ClientList({ onOpenClient }: { onOpenClient: (id: string) => voi
             </button>
           </div>
           {canCreateJobs(profile?.role) && !showArchived && (
-            <button className="btn primary" onClick={() => setCreating(true)}>
+            <button
+              className="btn primary"
+              data-testid="new-client-btn"
+              onClick={() => setCreating(true)}
+            >
               <Icon name="plus" size={16} /> New client
             </button>
           )}
@@ -69,7 +73,12 @@ export function ClientList({ onOpenClient }: { onOpenClient: (id: string) => voi
       ) : (
         <ul className="row-list">
           {clients.map((c) => (
-            <li key={c.id} className="row-item" onClick={() => onOpenClient(c.id)}>
+            <li
+              key={c.id}
+              className="row-item"
+              data-testid="client-row"
+              onClick={() => onOpenClient(c.id)}
+            >
               <Avatar name={c.name} id={c.id} size={32} />
               <div className="row-main">
                 <div className="row-title">{c.name}</div>
