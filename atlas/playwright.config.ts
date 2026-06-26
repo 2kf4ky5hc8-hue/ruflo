@@ -1,3 +1,4 @@
+import './tests/e2e/load-env'; // first: load .env.e2e before the guard reads env
 import { defineConfig, devices } from '@playwright/test';
 import { resolveBaseURL } from './tests/e2e/guard';
 
