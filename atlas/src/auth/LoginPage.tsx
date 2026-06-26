@@ -54,6 +54,7 @@ export function LoginPage() {
           Email
           <input
             type="email"
+            data-testid="login-email"
             value={email}
             autoComplete="username"
             placeholder="you@cubittwren.co.uk"
@@ -65,6 +66,7 @@ export function LoginPage() {
           Password
           <input
             type="password"
+            data-testid="login-password"
             value={password}
             autoComplete="current-password"
             placeholder="••••••••"
@@ -76,7 +78,12 @@ export function LoginPage() {
         {error && <div className="alert error">{error}</div>}
         {info && <div className="alert info">{info}</div>}
 
-        <button className="btn primary block" type="submit" disabled={busy}>
+        <button
+          className="btn primary block"
+          data-testid="login-submit"
+          type="submit"
+          disabled={busy}
+        >
           {busy ? 'Please wait…' : 'Sign in'}
         </button>
         <button

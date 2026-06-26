@@ -153,7 +153,11 @@ export function Board({ onNav }: { onNav: (v: AppView) => void }) {
               </button>
             </div>
             {canCreateJobs(profile?.role) && !showArchived && (
-              <button className="btn primary" onClick={() => setCreating(true)}>
+              <button
+                className="btn primary"
+                data-testid="new-job-btn"
+                onClick={() => setCreating(true)}
+              >
                 <Icon name="plus" size={16} /> New job
               </button>
             )}

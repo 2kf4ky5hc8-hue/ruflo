@@ -6,6 +6,12 @@ dist
 .DS_Store
 .vite
 
+# Playwright / E2E
+.env.e2e
+test-results
+playwright-report
+playwright/.cache
+
 # Intentionally committed: hold PUBLIC client values only (Supabase project URL
 # + publishable/anon key) so the Cloudflare builds self-configure. No secrets.
 # Override the repo-root ".env.*" ignore rule for these files.

@@ -81,7 +81,11 @@ export function ClientDetail({
             <div className="panel-head-row">
               <h3>Properties</h3>
               {canCreateJobs(profile?.role) && (
-                <button className="btn small" onClick={() => setAddingProp(true)}>
+                <button
+                  className="btn small"
+                  data-testid="add-property-btn"
+                  onClick={() => setAddingProp(true)}
+                >
                   <Icon name="plus" size={14} /> Add property
                 </button>
               )}

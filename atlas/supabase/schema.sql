@@ -152,7 +152,6 @@ create table if not exists job_contributions (
   user_id           uuid not null references profiles(id) on delete restrict,
   contribution_type contribution_type not null,
   description       text,
-  weight            numeric(6,2),  -- optional commission weight / points / %
   occurred_at       timestamptz not null default now(),
   added_by          uuid references profiles(id) on delete set null default auth.uid(),
   created_at        timestamptz not null default now()

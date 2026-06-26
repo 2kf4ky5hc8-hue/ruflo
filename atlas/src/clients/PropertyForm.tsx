@@ -68,7 +68,13 @@ export function PropertyForm({
           <button className="btn" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button className="btn primary" form="property-form" type="submit" disabled={busy}>
+          <button
+            className="btn primary"
+            data-testid="property-save-btn"
+            form="property-form"
+            type="submit"
+            disabled={busy}
+          >
             {busy ? 'Saving…' : 'Save'}
           </button>
         </>
@@ -78,6 +84,7 @@ export function PropertyForm({
         <label className="full">
           Label
           <input
+            data-testid="property-label-input"
             value={form.label}
             placeholder="e.g. Elgin Avenue flat"
             onChange={(e) => set('label', e.target.value)}
